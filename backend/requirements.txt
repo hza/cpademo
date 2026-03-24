@@ -1,0 +1,7 @@
+boto3>=1.34.0
+python-dotenv>=1.0.0
+amazon-textract-prettyprinter>=0.1.7
+openai>=1.0.0
+fastapi>=0.95.0
+uvicorn[standard]>=0.22.0
+python-multipart>=0.0.6

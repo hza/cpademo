@@ -1,0 +1,272 @@
+from __future__ import annotations
+
+import os
+import uuid
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+from src.textract_client import TextractClient
+from src.llm import run_prompt, run_prompt_stream
+import json
+import asyncio
+from fastapi import WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
+
+
+BASE_DIR = Path(__file__).parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# load environment variables from .env (if present)
+load_dotenv()
+
+app = FastAPI(title="Textract Server")
+
+# shared Textract client (uses environment AWS credentials)
+client = TextractClient(region=os.environ.get("AWS_REGION", "us-east-1"))
+
+# Allow CORS for common dev origins (Vite, localhost)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+def health() -> JSONResponse:
+    return JSONResponse({"status": "ok"})
+
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
+    """Upload an image/PDF and receive an `id` to reference it later.
+
+    Returns JSON: {"id": "<id>"}
+    """
+    file_id = uuid.uuid4().hex
+    suffix = Path(file.filename).suffix or ""
+    dest = UPLOAD_DIR / f"doc-{file_id}{suffix}"
+    try:
+        contents = await file.read()
+        dest.write_bytes(contents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"failed to save upload: {e}")
+    return JSONResponse({"id": f"doc-{file_id}"})
+
+
+def _find_file_by_id(file_id: str) -> Optional[Path]:
+    # prefer non-.txt matches when searching by id
+    matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
+    for p in matches:
+        if p.suffix.lower() != ".txt":
+            return p
+    # if only .txt (or other) matches exist, return the first
+    if matches:
+        return matches[0]
+    # fallback: allow files saved with no extension
+    p = UPLOAD_DIR / file_id
+    if p.exists():
+        return p
+    # try with doc- prefix if not present (prefer non-.txt)
+    if not file_id.startswith("doc-"):
+        matches = list(UPLOAD_DIR.glob(f"doc-{file_id}.*"))
+        for p in matches:
+            if p.suffix.lower() != ".txt":
+                return p
+        if matches:
+            return matches[0]
+        p = UPLOAD_DIR / f"doc-{file_id}"
+        if p.exists():
+            return p
+    return None
+
+
+@app.get("/uploads")
+def list_uploads() -> JSONResponse:
+    """Return all uploaded files that have the doc- prefix."""
+    files = []
+    for p in sorted(UPLOAD_DIR.iterdir(), key=lambda f: f.stat().st_mtime, reverse=True):
+        # skip saved text files (e.g. doc-*.txt)
+        if p.name.startswith("doc-") and p.suffix.lower() != ".txt":
+            # check for existing extracted text file (new style: <stem>.txt)
+            new_text = UPLOAD_DIR / f"{p.stem}.txt"
+            old_text = UPLOAD_DIR / f"text-{p.stem}.txt"
+            has_text = new_text.exists() or old_text.exists()
+            files.append({
+                "id": p.stem,          # filename without extension, e.g. doc-abc123
+                "name": p.name,
+                "uploadedAt": p.stat().st_mtime,
+                "has_text": has_text,
+            })
+    return JSONResponse({"uploads": files})
+
+
+@app.get("/textract/{file_id}")
+def textract_by_id(file_id: str) -> JSONResponse:
+    """Run Textract on the previously uploaded file and return extracted text."""
+    path = _find_file_by_id(file_id)
+    if not path:
+        raise HTTPException(status_code=404, detail="file id not found")
+
+    # If a saved text file already exists (new style: <stem>.txt), return it.
+    new_text = UPLOAD_DIR / f"{path.stem}.txt"
+    old_text = UPLOAD_DIR / f"text-{path.stem}.txt"
+    if new_text.exists() or old_text.exists():
+        try:
+            # prefer new_text; if only old_text exists, migrate it to new_text
+            if new_text.exists():
+                txt = new_text.read_text(encoding="utf-8")
+            else:
+                txt = old_text.read_text(encoding="utf-8")
+                # migrate to new filename (best-effort)
+                try:
+                    new_text.write_text(txt, encoding="utf-8")
+                except Exception:
+                    pass
+            return JSONResponse({"id": file_id, "text": txt})
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"failed to read text file: {e}")
+
+    try:
+        # prefer rich markdown export (tables/forms) when available
+        text = client.export_markdown(file_path=str(path))
+    except Exception:
+        # fallback to plain-line extraction
+        try:
+            text = client.extract_text(file_path=str(path))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # save extracted text (new style: <stem>.txt) so future requests can return it immediately
+    try:
+        new_text.write_text(text, encoding="utf-8")
+    except Exception:
+        # don't fail the request if saving the file fails; just log silently
+        pass
+
+    return JSONResponse({"id": file_id, "text": text})
+
+
+@app.get("/download/{file_id}")
+def download_file(file_id: str):
+    """Return the originally uploaded file (binary) for the given id."""
+    path = _find_file_by_id(file_id)
+    if not path:
+        raise HTTPException(status_code=404, detail="file id not found")
+    try:
+        return FileResponse(path= str(path), filename=path.name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"failed to read file: {e}")
+
+
+class DetectRequest(BaseModel):
+    id: str
+    prompt: str
+    model: Optional[str] = None
+
+
+@app.post("/detect_gl")
+def detect_gl(req: DetectRequest) -> JSONResponse:
+    """Run the user-provided prompt against the document text via the LLM.
+
+    Body: {"id": "doc-...", "prompt": "..."}
+    Returns: {"result": "<llm output>"}
+    """
+    path = _find_file_by_id(req.id)
+    if not path:
+        raise HTTPException(status_code=404, detail="file id not found")
+
+    # get extracted text (prefer cached .txt, else run Textract)
+    new_text = UPLOAD_DIR / f"{path.stem}.txt"
+    old_text = UPLOAD_DIR / f"text-{path.stem}.txt"
+    if new_text.exists():
+        doc_text = new_text.read_text(encoding="utf-8")
+    elif old_text.exists():
+        doc_text = old_text.read_text(encoding="utf-8")
+    else:
+        try:
+            doc_text = client.export_markdown(file_path=str(path))
+        except Exception:
+            doc_text = client.extract_text(file_path=str(path))
+
+    try:
+        # ensure API key is present before calling the LLM
+        if not os.environ.get("OPENROUTER_API_KEY"):
+            raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is not set. Set it in the environment to call the LLM.")
+        result = run_prompt(req.prompt, doc_text, model=req.model)
+    except Exception as e:
+        # If an HTTPException was raised above, re-raise it; otherwise return 500
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return JSONResponse({"result": result})
+
+
+@app.websocket("/ws/detect_gl")
+async def ws_detect_gl(websocket: WebSocket):
+    """WebSocket endpoint that accepts a single JSON message: {"id": "doc-...", "prompt": "..."}
+
+    Streams LLM output back to the client as plain text frames. Sends a final `[[DONE]]` frame when finished.
+    """
+    await websocket.accept()
+    try:
+        raw = await websocket.receive_text()
+        try:
+            payload = json.loads(raw)
+            file_id = payload.get("id")
+            prompt = payload.get("prompt")
+            model = payload.get("model") or None
+        except Exception:
+            await websocket.send_text(json.dumps({"error": "invalid payload; expected JSON with id and prompt"}))
+            await websocket.close()
+            return
+
+        path = _find_file_by_id(file_id)
+        if not path:
+            await websocket.send_text(json.dumps({"error": "file id not found"}))
+            await websocket.close()
+            return
+
+        # obtain document text (prefer cached)
+        new_text = UPLOAD_DIR / f"{path.stem}.txt"
+        old_text = UPLOAD_DIR / f"text-{path.stem}.txt"
+        if new_text.exists():
+            doc_text = new_text.read_text(encoding="utf-8")
+        elif old_text.exists():
+            doc_text = old_text.read_text(encoding="utf-8")
+        else:
+            try:
+                doc_text = client.export_markdown(file_path=str(path))
+            except Exception:
+                doc_text = client.extract_text(file_path=str(path))
+
+        # run the streaming LLM in a background thread and forward chunks as they arrive
+        loop = asyncio.get_running_loop()
+
+        def produce():
+            try:
+                for chunk in run_prompt_stream(prompt, doc_text, model=model):
+                    # schedule send_text on the event loop
+                    asyncio.run_coroutine_threadsafe(websocket.send_text(chunk), loop)
+                asyncio.run_coroutine_threadsafe(websocket.send_text('[[DONE]]'), loop)
+            except Exception as e:
+                asyncio.run_coroutine_threadsafe(websocket.send_text(json.dumps({"error": str(e)})), loop)
+
+        await loop.run_in_executor(None, produce)
+
+    except WebSocketDisconnect:
+        return
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass

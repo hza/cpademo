@@ -1,0 +1,182 @@
+import React, { useState, useEffect } from "react"
+import axios from "axios"
+import { useParams } from "react-router-dom"
+
+export default function GLDetector({ id, text: extractedText, onBack, onRunStart, onStream, onRunDone }) {
+  const params = useParams()
+  const docId = id || params.id
+  const API = "http://localhost:8000"
+  const [prompt, setPrompt] = useState(`You are a Senior AI Accountant specialized in Xero’s Chart of Accounts (COA) and automated document processing.
+
+Task: Analyze the provided OCR text from a financial document (Invoice, Bill, or Receipt) and output the correct Xero GL Code of the financial document.
+
+Reference GL Code Library (Standard Xero Schema):
+
+JSON:
+
+{
+  "200": "Sales / Revenue",
+  "270": "Interest Income",
+  "300": "Cost of Goods Sold (COGS)",
+  "310": "Freight & Courier / Shipping",
+  "320": "Customs & Import Duty",
+  "400": "Advertising & Marketing",
+  "410": "Bank Fees / Transaction Costs",
+  "429": "General Expenses",
+  "477": "Travel - International",
+  "489": "IT Software & Cloud Services (e.g., AWS, SaaS)",
+  "500": "Printing & Stationery",
+  "720": "Computer Equipment (Asset)",
+  "800": "Accounts Payable (System Account)",
+  "820": "VAT/GST"
+}
+
+Instructions:
+1. Identify the GL code of document.
+2. Add explanations for all assumptions made during the detection process.
+3. If GL code cannot be confidently detected, return "Unknown" as the GL Code. 
+4. Return confidence level (0-100) for the assigned GL Code
+5. Return list of keywords for RAG search to find similar documents. Do not include GL code or numbers in the keywords.
+    `)
+  const [text, setText] = useState("")
+  // model picker (user-selectable). Default to an NVIDIA model identifier per request.
+  const [model, setModel] = useState('nvidia/nemotron-3-super-120b-a12b:free')
+
+  useEffect(() => {
+    // prefer extractedText passed from parent; otherwise fetch by id so page works after refresh
+    if (extractedText) {
+      setText(extractedText)
+      return
+    }
+    if (!docId) return
+    let cancelled = false
+    const fetchText = async () => {
+      try {
+        const res = await axios.get(`${API}/textract/${docId}`)
+        if (!cancelled) setText(res.data.text || "")
+      } catch (e) {
+        if (!cancelled) setText("")
+      }
+    }
+    fetchText()
+    return () => { cancelled = true }
+  }, [extractedText])
+  const [loading, setLoading] = useState(false)
+
+  const runDetection = () => {
+    if (loading) return
+    // open result page immediately
+    if (onRunStart) onRunStart(model, docId)
+    setLoading(true)
+
+    try {
+      const ws = new WebSocket("ws://localhost:8000/ws/detect_gl")
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ id: docId, prompt, model }))
+      }
+      ws.onmessage = (ev) => {
+        const data = ev.data
+        if (data === '[[DONE]]') {
+          setLoading(false)
+          try { ws.close() } catch (e) {}
+          if (onRunDone) onRunDone()
+          return
+        }
+        // pass chunks to parent to append to result
+        if (onStream) onStream(data)
+      }
+      ws.onerror = (err) => {
+        setLoading(false)
+        alert('WebSocket error while streaming LLM output')
+      }
+      ws.onclose = () => {
+        setLoading(false)
+      }
+    } catch (err) {
+      setLoading(false)
+      alert("Detection failed: " + (err?.message || err))
+    }
+  }
+
+  return (
+    <div>
+      <div className="section-header-card" style={{ alignItems: 'center' }}>
+        <div>
+          <h2 className="section-title">Detect GL Code</h2>
+          <p className="section-sub">Run a configurable agent prompt against the extracted text for <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{docId}</span></p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="btn-primary" onClick={runDetection} disabled={loading}>{loading ? 'Detecting…' : 'Detect GL Code'}</button>
+          <button className="btn-primary" style={{ background: '#94a3b8' }} onClick={onBack}>Back</button>
+        </div>
+      </div>
+
+          
+
+      <div className="table-card" style={{ padding: 20, display: 'grid', gap: 12, maxHeight: '60vh', overflow: 'hidden' }}>
+        <div>
+          <h3 style={{ margin: '8px 0' }}>Agent Prompt (editable)</h3>
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} style={{ width: '100%', minHeight: 120, fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, padding: 12, boxSizing: 'border-box' }} />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ margin: '8px 0' }}>Extracted Text</h3>
+          <pre style={{ maxHeight: '55vh', whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, color: '#0f172a', overflowY: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>{text}</pre>
+        </div>
+      </div>
+
+      <div className="table-card" style={{ padding: '12px 20px', marginTop: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>LLM Model</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+            <input
+              list="models"
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              placeholder="Type or select a model…"
+              style={{
+                flex: 1,
+                padding: '7px 12px',
+                fontSize: 13,
+                fontFamily: 'ui-monospace, "Fira Code", monospace',
+                border: '1px solid #cbd5e1',
+                borderRadius: 6,
+                background: '#f8fafc',
+                color: '#0f172a',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <datalist id="models">
+              <option value="nvidia/nemotron-3-super-120b-a12b:free" />
+              <option value="z-ai/glm-4.5-air:free" />
+              <option value="qwen/qwen3-next-80b-a3b-instruct:free" />
+            </datalist>
+            <button
+              onClick={() => {
+                try {
+                  const url = 'https://openrouter.ai/' + (model || '')
+                  window.open(url, '_blank')
+                } catch (e) {
+                  // ignore
+                }
+              }}
+              style={{
+                padding: '7px 12px',
+                fontSize: 13,
+                borderRadius: 6,
+                border: '1px solid #cbd5e1',
+                background: '#eef2ff',
+                color: '#3730a3',
+                cursor: 'pointer'
+              }}
+              title="Open model page on OpenRouter"
+            >
+              View on OpenRouter
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

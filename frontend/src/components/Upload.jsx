@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react"
+import { useNavigate } from 'react-router-dom'
 import axios from "axios"
 
 const API = "http://localhost:8000"
 
 export default function Upload({ onOpenViewer }) {
+  const navigate = useNavigate()
   const [uploads, setUploads] = useState([])
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -131,7 +133,9 @@ export default function Upload({ onOpenViewer }) {
               {uploads.map((u, i) => (
                 <React.Fragment key={u.id || i}>
                   <tr>
-                    <td className="file-name">{u.name}</td>
+                    <td className="file-name">
+                      <a className="file-link" onClick={() => u.id && navigate(`/image/${u.id}`)} style={{ cursor: 'pointer', color: '#0ea5e9' }}>{u.name}</a>
+                    </td>
                     <td className="muted">{u.uploadedAt}</td>
                     <td>{statusBadge(u.status)}</td>
                     <td className="actions-cell">

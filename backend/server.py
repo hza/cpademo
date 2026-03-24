@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import logging
+import mimetypes
     
 from src.textract_client import TextractClient
 from src.llm import run_prompt, run_prompt_stream
@@ -98,7 +99,9 @@ async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
         meta = UPLOAD_DIR / f"{file_id}.json"
         try:
             uploaded_at = dest.stat().st_mtime
-            meta.write_text(json.dumps({"filename": file.filename, "uploadedAt": uploaded_at}), encoding="utf-8")
+            # prefer provided upload content type, else guess from filename
+            content_type = getattr(file, 'content_type', None) or mimetypes.guess_type(file.filename)[0] or 'application/octet-stream'
+            meta.write_text(json.dumps({"filename": file.filename, "uploadedAt": uploaded_at, "contentType": content_type}), encoding="utf-8")
         except Exception:
             logger.exception("Failed to write metadata for upload %s", dest)
     except Exception as e:
@@ -108,15 +111,34 @@ async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
 
 
 def _find_file_by_id(file_id: str) -> Optional[Path]:
-    # prefer non-.txt matches when searching by id
-    # try exact (no prefix) first
-    matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
+    # If metadata exists, prefer the original uploaded filename/suffix recorded there
+    meta = UPLOAD_DIR / f"{file_id}.json"
+    if meta.exists():
+        try:
+            data = json.loads(meta.read_text(encoding="utf-8"))
+            orig = data.get("filename")
+            if orig:
+                suffix = Path(orig).suffix or ""
+                candidate = UPLOAD_DIR / f"{file_id}{suffix}"
+                if candidate.exists():
+                    return candidate
+        except Exception:
+            logger.exception("Failed to read metadata for %s", file_id)
+
+    # Fallback: prefer any match that isn't metadata (.json) or extracted text (.txt)
+    matches = sorted(UPLOAD_DIR.glob(f"{file_id}.*"), key=lambda p: p.suffix)
     for p in matches:
-        if p.suffix.lower() != ".txt":
+        if p.suffix.lower() not in (".json", ".txt"):
             return p
-    # if only .txt (or other) matches exist, return the first
-    if matches:
-        return matches[0]
+
+    # If only .txt or .json exist, prefer the text file first, then metadata JSON
+    for p in matches:
+        if p.suffix.lower() == ".txt":
+            return p
+    for p in matches:
+        if p.suffix.lower() == ".json":
+            return p
+
     # fallback: allow files saved with no extension
     p = UPLOAD_DIR / file_id
     if p.exists():
@@ -141,13 +163,14 @@ def list_uploads() -> JSONResponse:
                 continue
             filename = data.get("filename") or ""
             uploaded_at = data.get("uploadedAt") or p.stat().st_mtime
+            content_type = data.get("contentType")
             # bare id is the filename stem
             bare_id = p.stem
             # determine status by checking for extracted text file (new style: <id>.txt)
             new_text = UPLOAD_DIR / f"{bare_id}.txt"
             has_text = new_text.exists()
             status = "READY" if has_text else "UPLOADED"
-            files.append({"id": bare_id, "name": filename, "uploadedAt": uploaded_at, "status": status})
+            files.append({"id": bare_id, "name": filename, "uploadedAt": uploaded_at, "status": status, "contentType": content_type})
         except Exception:
             logger.exception("Failed to read upload metadata %s", p)
             continue
@@ -200,7 +223,9 @@ def download_file(file_id: str):
     if not path:
         raise HTTPException(status_code=404, detail="file id not found")
     try:
-        return FileResponse(path= str(path), filename=path.name)
+        # set a sensible Content-Type based on the file extension
+        media_type = mimetypes.guess_type(str(path))[0]
+        return FileResponse(path=str(path), filename=path.name, media_type=media_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"failed to read file: {e}")
 

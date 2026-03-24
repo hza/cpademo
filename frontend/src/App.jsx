@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom"
 import Upload from "./components/Upload"
 import TextViewer from "./components/TextViewer"
+import ImageViewer from "./components/ImageViewer"
 import GLDetector from "./components/GLDetector"
 import GLResult from "./components/GLResult"
 import Profile from "./components/Profile"
@@ -101,6 +102,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Upload onOpenViewer={(id) => { setViewerId(id); navigate(`/viewer/${id}`) }} />} />
             <Route path="/viewer/:id" element={<TextViewer id={viewerId} onBack={() => navigate('/')} onDetectGL={(id, text) => { setGlId(id); setGlText(text || ''); navigate(`/gl/${id}`) }} />} />
+              <Route path="/image/:id" element={<ImageViewer onBack={() => navigate(viewerId ? `/viewer/${viewerId}` : '/')} />} />
             <Route path="/gl/:id" element={<GLDetector id={glId} text={glText} onBack={() => navigate(viewerId ? `/viewer/${viewerId}` : '/')} onRunStart={(model, id) => { setGlModel(model || ''); setGlResult(''); setGlId(id); setGlLoading(true); navigate(`/gl/${id}/result`) }} onStream={(chunk) => setGlResult(prev => prev + chunk)} onRunDone={() => setGlLoading(false)} />} />
             <Route path="/gl/:id/result" element={<GLResult result={glResult} loading={glLoading} model={glModel} onBack={() => navigate((glId ? `/gl/${glId}` : '/'))} />} />
             <Route path="/profile" element={<Profile />} />

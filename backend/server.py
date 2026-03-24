@@ -88,18 +88,28 @@ async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
     """
     file_id = uuid.uuid4().hex
     suffix = Path(file.filename).suffix or ""
-    dest = UPLOAD_DIR / f"doc-{file_id}{suffix}"
+    dest = UPLOAD_DIR / f"{file_id}{suffix}"
     try:
         contents = await file.read()
         dest.write_bytes(contents)
+        logger.info("Saved upload '%s' to %s", file.filename, dest)
+        # create metadata JSON referencing the original filename and upload time
+        # metadata filename uses bare id (no prefix)
+        meta = UPLOAD_DIR / f"{file_id}.json"
+        try:
+            uploaded_at = dest.stat().st_mtime
+            meta.write_text(json.dumps({"filename": file.filename, "uploadedAt": uploaded_at}), encoding="utf-8")
+        except Exception:
+            logger.exception("Failed to write metadata for upload %s", dest)
     except Exception as e:
         logger.exception("Failed to save upload '%s' -> %s", file.filename, dest)
         raise HTTPException(status_code=500, detail=f"failed to save upload: {e}")
-    return JSONResponse({"id": f"doc-{file_id}"})
+    return JSONResponse({"id": file_id})
 
 
 def _find_file_by_id(file_id: str) -> Optional[Path]:
     # prefer non-.txt matches when searching by id
+    # try exact (no prefix) first
     matches = list(UPLOAD_DIR.glob(f"{file_id}.*"))
     for p in matches:
         if p.suffix.lower() != ".txt":
@@ -111,37 +121,36 @@ def _find_file_by_id(file_id: str) -> Optional[Path]:
     p = UPLOAD_DIR / file_id
     if p.exists():
         return p
-    # try with doc- prefix if not present (prefer non-.txt)
-    if not file_id.startswith("doc-"):
-        matches = list(UPLOAD_DIR.glob(f"doc-{file_id}.*"))
-        for p in matches:
-            if p.suffix.lower() != ".txt":
-                return p
-        if matches:
-            return matches[0]
-        p = UPLOAD_DIR / f"doc-{file_id}"
-        if p.exists():
-            return p
     return None
 
 
 @app.get("/uploads")
 def list_uploads() -> JSONResponse:
-    """Return all uploaded files that have the doc- prefix."""
+    """Return uploads based on metadata JSON files created at upload time.
+
+    Each metadata file is named `<id>.json` and contains {"filename": "..."}.
+    This endpoint returns a list of objects with `id` and `name` (original filename).
+    """
     files = []
-    for p in sorted(UPLOAD_DIR.iterdir(), key=lambda f: f.stat().st_mtime, reverse=True):
-        # skip saved text files (e.g. doc-*.txt)
-        if p.name.startswith("doc-") and p.suffix.lower() != ".txt":
-            # check for existing extracted text file (new style: <stem>.txt)
-            new_text = UPLOAD_DIR / f"{p.stem}.txt"
-            old_text = UPLOAD_DIR / f"text-{p.stem}.txt"
-            has_text = new_text.exists() or old_text.exists()
-            files.append({
-                "id": p.stem,          # filename without extension, e.g. doc-abc123
-                "name": p.name,
-                "uploadedAt": p.stat().st_mtime,
-                "has_text": has_text,
-            })
+    # consider metadata JSON files (new style: <id>.json)
+    for p in sorted(UPLOAD_DIR.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or "filename" not in data:
+                # skip unrelated JSON files
+                continue
+            filename = data.get("filename") or ""
+            uploaded_at = data.get("uploadedAt") or p.stat().st_mtime
+            # bare id is the filename stem
+            bare_id = p.stem
+            # determine status by checking for extracted text file (new style: <id>.txt)
+            new_text = UPLOAD_DIR / f"{bare_id}.txt"
+            has_text = new_text.exists()
+            status = "READY" if has_text else "UPLOADED"
+            files.append({"id": bare_id, "name": filename, "uploadedAt": uploaded_at, "status": status})
+        except Exception:
+            logger.exception("Failed to read upload metadata %s", p)
+            continue
     return JSONResponse({"uploads": files})
 
 
@@ -153,20 +162,13 @@ def textract_by_id(file_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="file id not found")
 
     # If a saved text file already exists (new style: <stem>.txt), return it.
-    new_text = UPLOAD_DIR / f"{path.stem}.txt"
-    old_text = UPLOAD_DIR / f"text-{path.stem}.txt"
-    if new_text.exists() or old_text.exists():
+    # Look for extracted text in new style: <id>.txt
+    stem = path.stem
+    new_text = UPLOAD_DIR / f"{stem}.txt"
+    if new_text.exists():
         try:
             # prefer new_text; if only old_text exists, migrate it to new_text
-            if new_text.exists():
-                txt = new_text.read_text(encoding="utf-8")
-            else:
-                txt = old_text.read_text(encoding="utf-8")
-                # migrate to new filename (best-effort)
-                try:
-                    new_text.write_text(txt, encoding="utf-8")
-                except Exception:
-                    pass
+            txt = new_text.read_text(encoding="utf-8")
             return JSONResponse({"id": file_id, "text": txt})
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"failed to read text file: {e}")
@@ -213,7 +215,7 @@ class DetectRequest(BaseModel):
 def detect_gl(req: DetectRequest) -> JSONResponse:
     """Run the user-provided prompt against the document text via the LLM.
 
-    Body: {"id": "doc-...", "prompt": "..."}
+    Body: {"id": "...", "prompt": "..."}
     Returns: {"result": "<llm output>"}
     """
     path = _find_file_by_id(req.id)
@@ -221,12 +223,11 @@ def detect_gl(req: DetectRequest) -> JSONResponse:
         raise HTTPException(status_code=404, detail="file id not found")
 
     # get extracted text (prefer cached .txt, else run Textract)
-    new_text = UPLOAD_DIR / f"{path.stem}.txt"
-    old_text = UPLOAD_DIR / f"text-{path.stem}.txt"
+    # prefer cached text in new style: <id>.txt
+    stem = path.stem
+    new_text = UPLOAD_DIR / f"{stem}.txt"
     if new_text.exists():
         doc_text = new_text.read_text(encoding="utf-8")
-    elif old_text.exists():
-        doc_text = old_text.read_text(encoding="utf-8")
     else:
         try:
             doc_text = client.export_markdown(file_path=str(path))
@@ -249,7 +250,7 @@ def detect_gl(req: DetectRequest) -> JSONResponse:
 
 @app.websocket("/ws/detect_gl")
 async def ws_detect_gl(websocket: WebSocket):
-    """WebSocket endpoint that accepts a single JSON message: {"id": "doc-...", "prompt": "..."}
+    """WebSocket endpoint that accepts a single JSON message: {"id": "...", "prompt": "..."}
 
     Streams LLM output back to the client as plain text frames. Sends a final `[[DONE]]` frame when finished.
     """
@@ -272,13 +273,11 @@ async def ws_detect_gl(websocket: WebSocket):
             await websocket.close()
             return
 
-        # obtain document text (prefer cached)
-        new_text = UPLOAD_DIR / f"{path.stem}.txt"
-        old_text = UPLOAD_DIR / f"text-{path.stem}.txt"
+        # obtain document text (prefer cached in new style: <id>.txt)
+        stem = path.stem
+        new_text = UPLOAD_DIR / f"{stem}.txt"
         if new_text.exists():
             doc_text = new_text.read_text(encoding="utf-8")
-        elif old_text.exists():
-            doc_text = old_text.read_text(encoding="utf-8")
         else:
             try:
                 doc_text = client.export_markdown(file_path=str(path))

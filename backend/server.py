@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import logging
     
 from src.textract_client import TextractClient
 from src.llm import run_prompt, run_prompt_stream
@@ -26,6 +27,10 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # load environment variables from .env (if present)
 load_dotenv()
 
+# configure basic logging to stdout
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Textract Server")
 
 # shared Textract client (uses environment AWS credentials)
@@ -34,7 +39,7 @@ client = TextractClient(region=os.environ.get("AWS_REGION", "us-east-1"))
 # Allow CORS for common dev origins (Vite, localhost)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8081", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,6 +93,7 @@ async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
         contents = await file.read()
         dest.write_bytes(contents)
     except Exception as e:
+        logger.exception("Failed to save upload '%s' -> %s", file.filename, dest)
         raise HTTPException(status_code=500, detail=f"failed to save upload: {e}")
     return JSONResponse({"id": f"doc-{file_id}"})
 

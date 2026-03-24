@@ -20,6 +20,9 @@ COPY backend/ /app/backend/
 # This allows the backend to serve the frontend static files from /webroot
 COPY frontend/dist/ /app/backend/webroot/
 
+# Ensure uploads directory exists and is writable by the app
+RUN mkdir -p /app/backend/uploads && chmod -R a+rwx /app/backend/uploads
+
 WORKDIR /app/backend
 
 EXPOSE 8000

@@ -1,0 +1,9 @@
+# Exclude uploaded files from Docker image builds
+backend/uploads
+backend/uploads/**
+
+# Common ignores
+.venv
+__pycache__
+.git
+*.pyc

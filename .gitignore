@@ -26,3 +26,4 @@ __pycache__/
 *.bak
 *.tmp
 backend/uploads/
+backend/webroot/

@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-
+    
 from src.textract_client import TextractClient
 from src.llm import run_prompt, run_prompt_stream
 import json
@@ -38,6 +39,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve static files from backend/webroot at /webroot
+WEBROOT_DIR = BASE_DIR / "webroot"
+if WEBROOT_DIR.exists():
+    app.mount("/webroot", StaticFiles(directory=str(WEBROOT_DIR)), name="webroot")
+    # Mount any subdirectories (e.g. /assets) so absolute paths in index.html resolve
+    for p in WEBROOT_DIR.iterdir():
+        if p.is_dir():
+            mount_path = f"/{p.name}"
+            try:
+                app.mount(mount_path, StaticFiles(directory=str(p)), name=p.name)
+            except Exception:
+                pass
+    # serve favicon at site root if present
+    favicon_path = WEBROOT_DIR / "favicon.svg"
+    if favicon_path.exists():
+        @app.get("/favicon.svg")
+        def favicon_svg():
+            try:
+                return FileResponse(path=str(favicon_path), filename="favicon.svg", media_type="image/svg+xml")
+            except Exception:
+                raise HTTPException(status_code=500, detail="failed to read favicon")
+    # optional: serve index at root of mounted path
+    @app.get("/", response_class=HTMLResponse)
+    def root_index():
+        index = WEBROOT_DIR / "index.html"
+        if index.exists():
+            return HTMLResponse(index.read_text(encoding="utf-8"))
+        return JSONResponse({"status": "ok"})
 
 
 @app.get("/health")

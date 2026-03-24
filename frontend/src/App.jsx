@@ -48,7 +48,7 @@ export default function App() {
       <aside className="sidebar">
         <div className="sidebar-logo">
           <span className="logo-icon">📚</span>
-          <span className="logo-text">CPA Platform</span>
+          <span className="logo-text">CPA Demo</span>
         </div>
         <nav className="sidebar-nav">
           {NAV.map(group => (

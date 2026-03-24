@@ -122,8 +122,8 @@ export default function Upload({ onOpenViewer }) {
             <thead>
               <tr>
                 <th>FILE</th>
-                <th>STATUS</th>
                 <th>UPLOADED</th>
+                <th>STATUS</th>
                 <th>ACTIONS</th>
               </tr>
             </thead>
@@ -132,8 +132,8 @@ export default function Upload({ onOpenViewer }) {
                 <React.Fragment key={u.id || i}>
                   <tr>
                     <td className="file-name">{u.name}</td>
-                    <td>{statusBadge(u.status)}</td>
                     <td className="muted">{u.uploadedAt}</td>
+                    <td>{statusBadge(u.status)}</td>
                     <td className="actions-cell">
                       {(!u.has_text && u.status === "Uploaded") && (
                         <button className="action-btn" onClick={() => extract(u.id)}>Extract Text</button>

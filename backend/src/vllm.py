@@ -40,6 +40,7 @@ def _read_b64(path: str) -> tuple[str, str]:
 # Override with VLLM_MODEL environment variable.
 _DEFAULT_VLLM_MODEL = "google/gemini-2.0-flash-001"
 
+# also: VLLM_MODEL=anthropic/claude-3-haiku
 
 def ocr_with_openrouter(path: str, api_key: str | None = None, model: str | None = None) -> dict:
     """Send the image to an OpenRouter vision model using the standard image_url API.
@@ -74,9 +75,10 @@ def ocr_with_openrouter(path: str, api_key: str | None = None, model: str | None
                         {
                             "type": "text",
                             "text": (
-                                "Extract all textual content from the image. "
-                                "Return only the extracted text, preserving layout as much as possible. "
-                                "Do not add any commentary or formatting."
+                                "Extract all textual content from the image and format it as Markdown. "
+                                "Use headings, bullet lists, tables, bold/italic, and code blocks where appropriate to reflect the visual structure. "
+                                "Preserve the original reading order. "
+                                "Return only the Markdown — no preamble, no commentary, no code fences around the whole output."
                             ),
                         },
                         {

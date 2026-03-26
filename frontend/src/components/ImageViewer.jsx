@@ -90,7 +90,7 @@ export default function ImageViewer({ id, onBack }) {
       {ocrText && (
         <div className="table-card" style={{ marginTop: 12 }}>
           <h3 className="table-title">OCR Result</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{ocrText}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{ocrText}</pre>
         </div>
       )}
     </div>

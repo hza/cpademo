@@ -52,60 +52,64 @@ export default function ImageViewer({ id, onBack }) {
 
   return (
     <div>
-      <div className="section-header-card" style={{ alignItems: 'center' }}>
+      <div className="section-header-card" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2 className="section-title">View Original</h2>
           <p className="section-sub">Viewing original file for <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{displayName || docId}</span></p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <button className="btn-primary" style={{ background: '#94a3b8' }} onClick={onBack}>Back</button>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                list="vllm-models"
-                value={model}
-                onChange={e => setModel(e.target.value)}
-                placeholder="Type or select a model…"
-                style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontFamily: 'ui-monospace, "Fira Code", monospace' }}
-              />
-              <datalist id="vllm-models">
-                <option value="google/gemini-2.0-flash-001" />
-                <option value="anthropic/claude-3" />
-                <option value="nvidia/nemotron-3-super-120b-a12b:free" />
-              </datalist>
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+          {/* Row 1: radio buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>OCR via</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: ocrMethod === 'vllm' ? 600 : 400 }}>
+              <input type="radio" name="ocrMethod" value="vllm" checked={ocrMethod === 'vllm'} onChange={() => setOcrMethod('vllm')} />
+              LLM
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: ocrMethod === 'textract' ? 600 : 400 }}>
+              <input type="radio" name="ocrMethod" value="textract" checked={ocrMethod === 'textract'} onChange={() => setOcrMethod('textract')} />
+              Textract
+            </label>
+          </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input type="radio" name="ocrMethod" value="vllm" checked={ocrMethod === 'vllm'} onChange={() => setOcrMethod('vllm')} />
-                  LLM
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input type="radio" name="ocrMethod" value="textract" checked={ocrMethod === 'textract'} onChange={() => setOcrMethod('textract')} />
-                  Textract
-                </label>
-              </div>
-
-              <button className="btn-primary" style={{ background: '#0ea5e9' }} onClick={async () => {
-                if (!docId) return
-                setOcrLoading(true)
-                setOcrText(null)
-                try {
-                  if (ocrMethod === 'textract') {
-                    const res = await axios.get(`${API}/textract/${docId}`)
-                    setOcrText(res.data.text)
-                  } else {
-                    const res = await axios.post(`${API}/vllm/ocr/${docId}?model=${encodeURIComponent(model)}`)
-                    setOcrText(res.data.text)
-                  }
-                } catch (e) {
-                  setOcrText(`OCR failed: ${e?.response?.data?.detail || e.message || e}`)
-                } finally {
-                  setOcrLoading(false)
+          {/* Row 2: model picker + OCR button + Back */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              list="vllm-models"
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              placeholder="Type or select a model…"
+              disabled={ocrMethod === 'textract'}
+              style={{
+                padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1',
+                fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, minWidth: 260,
+                opacity: ocrMethod === 'textract' ? 0.4 : 1,
+              }}
+            />
+            <datalist id="vllm-models">
+              <option value="google/gemini-2.0-flash-001" />
+              <option value="google/gemini-2.5-flash" />
+              <option value="google/gemini-3-flash-preview" />
+              <option value="anthropic/claude-3" />
+            </datalist>
+            <button className="btn-primary" style={{ background: '#0ea5e9' }} disabled={ocrLoading} onClick={async () => {
+              if (!docId) return
+              setOcrLoading(true)
+              setOcrText(null)
+              try {
+                if (ocrMethod === 'textract') {
+                  const res = await axios.get(`${API}/textract/${docId}`)
+                  setOcrText(res.data.text)
+                } else {
+                  const res = await axios.post(`${API}/vllm/ocr/${docId}?model=${encodeURIComponent(model)}`)
+                  setOcrText(res.data.text)
                 }
-              }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>
-            </div>
+              } catch (e) {
+                setOcrText(`OCR failed: ${e?.response?.data?.detail || e.message || e}`)
+              } finally {
+                setOcrLoading(false)
+              }
+            }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>
+            <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={onBack}>Back</button>
           </div>
         </div>
       </div>

@@ -38,7 +38,7 @@ def _read_b64(path: str) -> tuple[str, str]:
 
 # Default visual model — must support image_url content parts via OpenRouter.
 # Override with VLLM_MODEL environment variable.
-_DEFAULT_VLLM_MODEL = "google/gemini-2.0-flash-001"
+_DEFAULT_VLLM_MODEL = "google/gemini-3-flash-preview"
 
 # also: VLLM_MODEL=anthropic/claude-3-haiku
 

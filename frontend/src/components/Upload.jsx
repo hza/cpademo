@@ -153,6 +153,26 @@ export default function Upload({ onOpenViewer }) {
                           View Text
                         </button>
                       )}
+                      <button className="action-btn" style={{ marginLeft: 8, background: '#ef4444', color: 'white' }} onClick={async () => {
+                        if (!u.id) return
+                        if (!window.confirm(`Delete ${u.name}? This cannot be undone.`)) return
+                        try {
+                          await axios.delete(`${API}/upload/${u.id}`)
+                          // refresh list
+                          const list = await axios.get(`${API}/uploads`)
+                          const existing = list.data.uploads.map(u => ({
+                            id: u.id,
+                            name: u.name,
+                            status: u.has_text ? "Done" : "Uploaded",
+                            has_text: u.has_text || false,
+                            uploadedAt: new Date(u.uploadedAt * 1000).toLocaleString(),
+                            text: null,
+                          }))
+                          setUploads(existing)
+                        } catch (e) {
+                          alert('Failed to delete file')
+                        }
+                      }}>Delete</button>
                       {(u.status === "Extracting") && <span className="muted">Processing…</span>}
                     </td>
                   </tr>

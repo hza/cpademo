@@ -13,8 +13,11 @@ RUN apt-get update \
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy backend source
-COPY backend/ /app/backend/
+# Copy backend Python sources only
+# copy the main server and the python package directory
+RUN mkdir -p /app/backend
+COPY backend/server.py /app/backend/server.py
+COPY backend/src/ /app/backend/src/
 
 # Copy frontend build output (if present) into backend webroot
 # This allows the backend to serve the frontend static files from /webroot
@@ -25,6 +28,6 @@ RUN mkdir -p /app/backend/uploads && chmod -R a+rwx /app/backend/uploads
 
 WORKDIR /app/backend
 
-EXPOSE 8000
+EXPOSE 8080
 
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]

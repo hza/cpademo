@@ -7,3 +7,6 @@ backend/uploads/**
 __pycache__
 .git
 *.pyc
+
+.env
+.env.sample

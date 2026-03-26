@@ -40,7 +40,7 @@ client = TextractClient(region=os.environ.get("AWS_REGION", "us-east-1"))
 # Allow CORS for common dev origins (Vite, localhost)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8081", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8080", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -170,11 +170,42 @@ def list_uploads() -> JSONResponse:
             new_text = UPLOAD_DIR / f"{bare_id}.txt"
             has_text = new_text.exists()
             status = "READY" if has_text else "UPLOADED"
-            files.append({"id": bare_id, "name": filename, "uploadedAt": uploaded_at, "status": status, "contentType": content_type})
+            files.append({"id": bare_id, "name": filename, "uploadedAt": uploaded_at, "status": status, "contentType": content_type, "has_text": has_text})
         except Exception:
             logger.exception("Failed to read upload metadata %s", p)
             continue
     return JSONResponse({"uploads": files})
+
+
+@app.delete("/upload/{file_id}")
+def delete_upload(file_id: str) -> JSONResponse:
+    """Delete all files associated with a given upload id (<id>.* and <id>).
+
+    Returns JSON listing deleted filenames. If no files are found, returns 404.
+    """
+    deleted = []
+    # remove files matching the id with any extension
+    for p in list(UPLOAD_DIR.glob(f"{file_id}.*")):
+        try:
+            p.unlink()
+            logger.info("Deleted %s", p)
+            deleted.append(p.name)
+        except Exception:
+            logger.exception("Failed to delete %s", p)
+    # also remove file with no extension if present
+    plain = UPLOAD_DIR / file_id
+    if plain.exists():
+        try:
+            plain.unlink()
+            logger.info("Deleted %s", plain)
+            deleted.append(plain.name)
+        except Exception:
+            logger.exception("Failed to delete %s", plain)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="file id not found")
+
+    return JSONResponse({"deleted": deleted})
 
 
 @app.get("/textract/{file_id}")

@@ -6,11 +6,11 @@ export default function GLDetector({ id, text: extractedText, onBack, onRunStart
   const params = useParams()
   const docId = id || params.id
   const API = "http://localhost:8000"
-  const [prompt, setPrompt] = useState(`You are a Senior AI Accountant specialized in Xero’s Chart of Accounts (COA) and automated document processing.
+  const [prompt, setPrompt] = useState(`You are a Senior Accountant specialized in Chart of Accounts (COA) and automated document processing.
 
-Task: Analyze the provided OCR text from a financial document (Invoice, Bill, or Receipt) and output the correct Xero GL Code of the financial document.
+Task: Analyze the provided OCR text from a financial document (Invoice, Bill, or Receipt) and output the correct GL Code of the financial document.
 
-Reference GL Code Library (Standard Xero Schema):
+Reference GL Code Library:
 
 JSON:
 

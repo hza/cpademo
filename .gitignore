@@ -27,3 +27,4 @@ __pycache__/
 *.tmp
 backend/uploads/
 backend/webroot/
+.vscode/PythonImportHelper-v2-Completion.json

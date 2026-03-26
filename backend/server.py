@@ -15,6 +15,7 @@ import mimetypes
     
 from src.textract_client import TextractClient
 from src.llm import run_prompt, run_prompt_stream
+from src.vllm import run_visual_ocr
 import json
 import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
@@ -243,6 +244,37 @@ def textract_by_id(file_id: str) -> JSONResponse:
     except Exception:
         # don't fail the request if saving the file fails; just log silently
         pass
+
+    return JSONResponse({"id": file_id, "text": text})
+
+
+@app.post("/vllm/ocr/{file_id}")
+def vllm_ocr(file_id: str) -> JSONResponse:
+    """Run visual OCR (OpenRouter visual LLM with local fallback) on the original file.
+
+    Saves the extracted text to `<id>.txt` and returns `{"id":"...","text":"..."}`.
+    """
+    path = _find_file_by_id(file_id)
+    if not path:
+        raise HTTPException(status_code=404, detail="file id not found")
+
+    try:
+        res = run_visual_ocr(str(path))
+        # prefer `text` key if present
+        text = res.get("text") if isinstance(res, dict) else str(res)
+        if text is None:
+            text = json.dumps(res)
+    except Exception as e:
+        logger.exception("vllm OCR failed for %s: %s", file_id, e)
+        raise HTTPException(status_code=500, detail=f"vllm ocr failed: {e}")
+
+    # persist as extracted text for future requests
+    try:
+        stem = path.stem
+        txt_path = UPLOAD_DIR / f"{stem}.txt"
+        txt_path.write_text(text, encoding="utf-8")
+    except Exception:
+        logger.exception("Failed to save extracted text for %s", file_id)
 
     return JSONResponse({"id": file_id, "text": text})
 

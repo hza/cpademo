@@ -12,6 +12,8 @@ export default function ImageViewer({ id, onBack }) {
   const [displayName, setDisplayName] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrText, setOcrText] = useState(null)
 
   useEffect(() => {
     if (!docId) return
@@ -55,6 +57,19 @@ export default function ImageViewer({ id, onBack }) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn-primary" style={{ background: '#94a3b8' }} onClick={onBack}>Back</button>
+          <button className="btn-primary" style={{ background: '#0ea5e9' }} onClick={async () => {
+            if (!docId) return
+            setOcrLoading(true)
+            setOcrText(null)
+            try {
+              const res = await axios.post(`${API}/vllm/ocr/${docId}`)
+              setOcrText(res.data.text)
+            } catch (e) {
+              setOcrText(`OCR failed: ${e?.response?.data?.detail || e.message || e}`)
+            } finally {
+              setOcrLoading(false)
+            }
+          }}>{ocrLoading ? 'Running OCR…' : 'OCR with LLM'}</button>
         </div>
       </div>
 
@@ -71,6 +86,13 @@ export default function ImageViewer({ id, onBack }) {
           )
         )}
       </div>
+      {ocrLoading && <div style={{ padding: 12, color: '#64748b' }}>Running OCR with visual LLM…</div>}
+      {ocrText && (
+        <div className="table-card" style={{ marginTop: 12 }}>
+          <h3 className="table-title">OCR Result</h3>
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{ocrText}</pre>
+        </div>
+      )}
     </div>
   )
 }

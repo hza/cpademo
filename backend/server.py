@@ -249,7 +249,7 @@ def textract_by_id(file_id: str) -> JSONResponse:
 
 
 @app.post("/vllm/ocr/{file_id}")
-def vllm_ocr(file_id: str) -> JSONResponse:
+def vllm_ocr(file_id: str, model: Optional[str] = None) -> JSONResponse:
     """Run visual OCR (OpenRouter visual LLM with local fallback) on the original file.
 
     Saves the extracted text to `<id>.txt` and returns `{"id":"...","text":"..."}`.
@@ -259,7 +259,7 @@ def vllm_ocr(file_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="file id not found")
 
     try:
-        res = run_visual_ocr(str(path))
+        res = run_visual_ocr(str(path), model=model)
         # prefer `text` key if present
         text = res.get("text") if isinstance(res, dict) else str(res)
         if text is None:

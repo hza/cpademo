@@ -20,6 +20,7 @@ import os
 import base64
 import json
 import logging
+import mimetypes
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,19 +28,24 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def _read_b64(path: str) -> str:
+def _read_b64(path: str) -> tuple[str, str]:
+    """Return (base64_string, mime_type) for the given file."""
+    mime_type = mimetypes.guess_type(path)[0] or "image/jpeg"
     with open(path, "rb") as fh:
-        return base64.b64encode(fh.read()).decode("ascii")
+        b64 = base64.b64encode(fh.read()).decode("ascii")
+    return b64, mime_type
+
+
+# Default visual model — must support image_url content parts via OpenRouter.
+# Override with VLLM_MODEL environment variable.
+_DEFAULT_VLLM_MODEL = "google/gemini-2.0-flash-001"
 
 
 def ocr_with_openrouter(path: str, api_key: str | None = None, model: str | None = None) -> dict:
-    """Send the image to OpenRouter's chat endpoint and request OCR output.
+    """Send the image to an OpenRouter vision model using the standard image_url API.
 
-    The function sends a system prompt describing the expected JSON output
-    and includes the image as base64 inside the user message. Note: some
-    OpenRouter models may accept image attachments directly; this function
-    uses a conservative base64-in-message approach which works with
-    chat-style multimodal models that accept raw text input.
+    The image is encoded as a base64 data URL and embedded in the user message
+    content array, which is the format expected by all OpenAI-compatible vision models.
     """
     try:
         from openai import OpenAI
@@ -49,36 +55,41 @@ def ocr_with_openrouter(path: str, api_key: str | None = None, model: str | None
     if api_key is None:
         api_key = os.environ.get("OPENROUTER_API_KEY")
     if model is None:
-        model = os.environ.get("OPENROUTER_MODEL", "nvidia/llama-nemotron-embed-vl-1b-v2:free")
+        model = os.environ.get("VLLM_MODEL", _DEFAULT_VLLM_MODEL)
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY is not set")
 
     client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
 
-    b64 = _read_b64(path)
+    b64, mime_type = _read_b64(path)
+    data_url = f"data:{mime_type};base64,{b64}"
 
-    system_prompt = (
-        "You are a visual OCR assistant. The user will provide an image encoded in base64. "
-        "Extract all textual content from the image and return a JSON object exactly like: "
-        "{" + '"text": "<extracted text>"' + "}. Do not include any other text."
-    )
-
-    # Place the base64 payload in the user message separated by a marker.
-    user_content = f"DATA:BASE64\n{b64}"
-
-    # ask for JSON response (OpenRouter SDK supports response_format in some SDKs)
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Extract all textual content from the image. "
+                                "Return only the extracted text, preserving layout as much as possible. "
+                                "Do not add any commentary or formatting."
+                            ),
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": data_url},
+                        },
+                    ],
+                }
             ],
-            response_format={"type": "json_object"},
         )
 
-        raw = response.choices[0].message.content
-        return json.loads(raw)
+        text = response.choices[0].message.content or ""
+        return {"text": text}
     except Exception as e:
         logger.exception("OpenRouter OCR request failed: %s", e)
         raise

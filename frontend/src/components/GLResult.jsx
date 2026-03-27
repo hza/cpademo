@@ -13,6 +13,7 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
           <p className="section-sub">Result returned by the {model ? <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{model}</span> : ''} model</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={() => (navigate(`/gl/${docId}`))}>Back</button>
           <button className="btn-primary" onClick={() => navigate('/')}>Close</button>
         </div>
       </div>

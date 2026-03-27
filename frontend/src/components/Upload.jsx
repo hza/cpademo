@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useNavigate } from 'react-router-dom'
 import axios from "axios"
-
-const API = "http://localhost:8000"
+import { API } from "../config"
 
 export default function Upload({ onOpenViewer }) {
   const navigate = useNavigate()

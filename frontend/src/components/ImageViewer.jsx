@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react"
 import axios from "axios"
 import { useParams } from "react-router-dom"
 import ModelPicker from "./ModelPicker"
-
-const API = "http://localhost:8000"
+import { API } from "../config"
 
 export default function ImageViewer({ id, onBack, onDetectGL }) {
   const params = useParams()

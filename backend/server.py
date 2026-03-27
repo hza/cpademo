@@ -297,6 +297,7 @@ def vllm_ocr(file_id: str, model: Optional[str] = None) -> JSONResponse:
 
     # update metadata JSON to record OCR method (vllm) and model used
     try:
+        stem = path.stem
         meta_path = UPLOAD_DIR / f"{stem}.json"
         meta = {}
         if meta_path.exists():

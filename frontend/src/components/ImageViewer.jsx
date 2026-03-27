@@ -43,7 +43,18 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
         const res = await axios.get(`${API}/uploads`)
         const item = (res.data.uploads || []).find(u => String(u.id) === String(docId))
         if (item && item.name) setDisplayName(item.name)
-        if (item) setHasText(!!item.has_text)
+        if (item) {
+          setHasText(!!item.has_text)
+          if (item.has_text) {
+            try {
+              const r = await axios.get(`${API}/textract/${docId}`)
+              setOcrText(r.data.text)
+              setOcrRequested(true)
+            } catch (e) {
+              // ignore text fetch errors
+            }
+          }
+        }
       } catch (e) {
         // ignore metadata errors
       }

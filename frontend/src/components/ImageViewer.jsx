@@ -72,40 +72,45 @@ export default function ImageViewer({ id, onBack }) {
             </label>
           </div>
 
-          {/* Row 2: model picker + OCR button + Back */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ModelPicker
-              model={model}
-              onChange={setModel}
-              disabled={ocrMethod === 'textract'}
-              datalistId="vllm-models"
-              options={[
-                'google/gemini-2.0-flash-001',
-                'google/gemini-2.5-flash',
-                'google/gemini-3-flash-preview',
-                'anthropic/claude-3',
-              ]}
-            />
-            <button className="btn-primary" style={{ background: '#0ea5e9' }} disabled={ocrLoading} onClick={async () => {
-              if (!docId) return
-              setOcrLoading(true)
-              setOcrText(null)
-              try {
-                if (ocrMethod === 'textract') {
-                  const res = await axios.get(`${API}/textract/${docId}`)
-                  setOcrText(res.data.text)
-                } else {
-                  const res = await axios.post(`${API}/vllm/ocr/${docId}?model=${encodeURIComponent(model)}`)
-                  setOcrText(res.data.text)
+          {/* Row 2: model picker (own line) + OCR button + Back */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+              <ModelPicker
+                model={model}
+                onChange={setModel}
+                disabled={ocrMethod === 'textract'}
+                datalistId="vllm-models"
+                options={[
+                  'google/gemini-2.0-flash-001',
+                  'google/gemini-2.5-flash',
+                  'google/gemini-3-flash-preview',
+                  'anthropic/claude-3',
+                ]}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button className="btn-primary" style={{ background: '#0ea5e9' }} disabled={ocrLoading} onClick={async () => {
+                if (!docId) return
+                setOcrLoading(true)
+                setOcrText(null)
+                try {
+                  if (ocrMethod === 'textract') {
+                    const res = await axios.get(`${API}/textract/${docId}`)
+                    setOcrText(res.data.text)
+                  } else {
+                    const res = await axios.post(`${API}/vllm/ocr/${docId}?model=${encodeURIComponent(model)}`)
+                    setOcrText(res.data.text)
+                  }
+                } catch (e) {
+                  setOcrText(`OCR failed: ${e?.response?.data?.detail || e.message || e}`)
+                } finally {
+                  setOcrLoading(false)
                 }
-              } catch (e) {
-                setOcrText(`OCR failed: ${e?.response?.data?.detail || e.message || e}`)
-              } finally {
-                setOcrLoading(false)
-              }
-            }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>
-  
-            <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={onBack}>Back</button>
+              }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>
+
+              <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={onBack}>Back</button>
+            </div>
           </div>
         </div>
       </div>

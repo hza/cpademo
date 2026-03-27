@@ -3,8 +3,11 @@ import React from "react"
 export default function ModelPicker({ model, onChange, disabled, options = [], datalistId = 'models' }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      Model:
+      <label htmlFor={datalistId + '-input'} style={{ opacity: disabled ? 0.4 : 1 }}>
+        Model:
+      </label>
       <input
+        id={datalistId + '-input'}
         list={datalistId}
         value={model}
         onChange={e => onChange(e.target.value)}

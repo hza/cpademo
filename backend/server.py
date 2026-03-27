@@ -293,13 +293,7 @@ def vllm_ocr(file_id: str, model: Optional[str] = None) -> JSONResponse:
         logger.exception("vllm OCR failed for %s: %s", file_id, e)
         raise HTTPException(status_code=500, detail=f"vllm ocr failed: {e}")
 
-    # persist as extracted text for future requests
-    try:
-        stem = path.stem
-        txt_path = UPLOAD_DIR / f"{stem}.txt"
-        txt_path.write_text(text, encoding="utf-8")
-    except Exception:
-        logger.exception("Failed to save extracted text for %s", file_id)
+    # do NOT persist as <id>.txt; only LLM streaming should write this file
 
     # update metadata JSON to record OCR method (vllm) and model used
     try:
@@ -417,9 +411,23 @@ async def ws_detect_gl(websocket: WebSocket):
 
         def produce():
             try:
-                for chunk in run_prompt_stream(prompt, doc_text, model=model):
-                    # schedule send_text on the event loop
-                    asyncio.run_coroutine_threadsafe(websocket.send_text(chunk), loop)
+                # write streaming output to <stem>.txt as chunks arrive
+                txt_path = UPLOAD_DIR / f"{stem}.txt"
+                try:
+                    # open in write mode to overwrite any previous run for this id
+                    with open(txt_path, "w", encoding="utf-8") as f:
+                        for chunk in run_prompt_stream(prompt, doc_text, model=model):
+                            # schedule send_text on the event loop
+                            asyncio.run_coroutine_threadsafe(websocket.send_text(chunk), loop)
+                            try:
+                                f.write(chunk)
+                                f.flush()
+                            except Exception:
+                                logger.exception("Failed to write stream chunk for %s", file_id)
+                except Exception:
+                    # If opening/writing fails, log but continue streaming to client
+                    logger.exception("Failed to open/write stream file for %s", file_id)
+
                 asyncio.run_coroutine_threadsafe(websocket.send_text('[[DONE]]'), loop)
             except Exception as e:
                 asyncio.run_coroutine_threadsafe(websocket.send_text(json.dumps({"error": str(e)})), loop)

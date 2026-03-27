@@ -171,7 +171,16 @@ def list_uploads() -> JSONResponse:
             new_text = UPLOAD_DIR / f"{bare_id}.txt"
             has_text = new_text.exists()
             status = "READY" if has_text else "UPLOADED"
-            files.append({"id": bare_id, "name": filename, "uploadedAt": uploaded_at, "status": status, "contentType": content_type, "has_text": has_text})
+            files.append({
+                "id": bare_id,
+                "name": filename,
+                "uploadedAt": uploaded_at,
+                "status": status,
+                "contentType": content_type,
+                "has_text": has_text,
+                "ocrMethod": data.get("ocrMethod") if isinstance(data, dict) else None,
+                "ocrModel": data.get("ocrModel") if isinstance(data, dict) else None,
+            })
         except Exception:
             logger.exception("Failed to read upload metadata %s", p)
             continue

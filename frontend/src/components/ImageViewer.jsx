@@ -45,6 +45,9 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
         if (item && item.name) setDisplayName(item.name)
         if (item) {
           setHasText(!!item.has_text)
+          // set previously used OCR method and model if present
+          if (item.ocrModel) setModel(item.ocrModel)
+          if (item.ocrMethod) setOcrMethod(item.ocrMethod)
           if (item.has_text) {
             try {
               const r = await axios.get(`${API}/textract/${docId}`)

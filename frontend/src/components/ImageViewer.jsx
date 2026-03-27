@@ -54,8 +54,8 @@ export default function ImageViewer({ id, onBack }) {
     <div>
       <div className="section-header-card" style={{ alignItems: 'flex-start' }}>
         <div>
-          <h2 className="section-title">View Original</h2>
-          <p className="section-sub">Viewing original file for <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{displayName || docId}</span></p>
+          <h2 className="section-title">Document</h2>
+          <p className="section-sub">Original file: <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{displayName || docId}</span></p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
           {/* Row 1: radio buttons */}
@@ -73,6 +73,7 @@ export default function ImageViewer({ id, onBack }) {
 
           {/* Row 2: model picker + OCR button + Back */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            Model:
             <input
               list="vllm-models"
               value={model}
@@ -91,6 +92,29 @@ export default function ImageViewer({ id, onBack }) {
               <option value="google/gemini-3-flash-preview" />
               <option value="anthropic/claude-3" />
             </datalist>
+            <button
+              onClick={() => {
+                try {
+                  const url = 'https://openrouter.ai/' + (model || '')
+                  window.open(url, '_blank')
+                } catch (e) {
+                  // ignore
+                }
+              }}
+              style={{
+                padding: '7px 12px',
+                fontSize: 13,
+                borderRadius: 6,
+                border: '1px solid #cbd5e1',
+                background: '#eef2ff',
+                color: '#3730a3',
+                cursor: 'pointer',
+                marginLeft: 8,
+              }}
+              title="Open model page on OpenRouter"
+            >
+              View on OpenRouter
+            </button>
             <button className="btn-primary" style={{ background: '#0ea5e9' }} disabled={ocrLoading} onClick={async () => {
               if (!docId) return
               setOcrLoading(true)
@@ -109,6 +133,7 @@ export default function ImageViewer({ id, onBack }) {
                 setOcrLoading(false)
               }
             }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>
+  
             <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={onBack}>Back</button>
           </div>
         </div>

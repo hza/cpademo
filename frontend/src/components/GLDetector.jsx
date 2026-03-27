@@ -129,6 +129,7 @@ Instructions:
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>LLM Model</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+            Model: 
             <input
               list="models"
               value={model}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import axios from "axios"
 import { useParams } from "react-router-dom"
+import ModelPicker from "./ModelPicker"
 
 const API = "http://localhost:8000"
 
@@ -73,48 +74,18 @@ export default function ImageViewer({ id, onBack }) {
 
           {/* Row 2: model picker + OCR button + Back */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            Model:
-            <input
-              list="vllm-models"
-              value={model}
-              onChange={e => setModel(e.target.value)}
-              placeholder="Type or select a model…"
+            <ModelPicker
+              model={model}
+              onChange={setModel}
               disabled={ocrMethod === 'textract'}
-              style={{
-                padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1',
-                fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, minWidth: 260,
-                opacity: ocrMethod === 'textract' ? 0.4 : 1,
-              }}
+              datalistId="vllm-models"
+              options={[
+                'google/gemini-2.0-flash-001',
+                'google/gemini-2.5-flash',
+                'google/gemini-3-flash-preview',
+                'anthropic/claude-3',
+              ]}
             />
-            <datalist id="vllm-models">
-              <option value="google/gemini-2.0-flash-001" />
-              <option value="google/gemini-2.5-flash" />
-              <option value="google/gemini-3-flash-preview" />
-              <option value="anthropic/claude-3" />
-            </datalist>
-            <button
-              onClick={() => {
-                try {
-                  const url = 'https://openrouter.ai/' + (model || '')
-                  window.open(url, '_blank')
-                } catch (e) {
-                  // ignore
-                }
-              }}
-              style={{
-                padding: '7px 12px',
-                fontSize: 13,
-                borderRadius: 6,
-                border: '1px solid #cbd5e1',
-                background: '#eef2ff',
-                color: '#3730a3',
-                cursor: 'pointer',
-                marginLeft: 8,
-              }}
-              title="Open model page on OpenRouter"
-            >
-              View on OpenRouter
-            </button>
             <button className="btn-primary" style={{ background: '#0ea5e9' }} disabled={ocrLoading} onClick={async () => {
               if (!docId) return
               setOcrLoading(true)

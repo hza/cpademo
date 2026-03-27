@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import axios from "axios"
 import { useParams } from "react-router-dom"
+import ModelPicker from "./ModelPicker"
 
 export default function GLDetector({ id, text: extractedText, onBack, onRunStart, onStream, onRunDone }) {
   const params = useParams()
@@ -129,52 +130,17 @@ Instructions:
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>LLM Model</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-            Model: 
-            <input
-              list="models"
-              value={model}
-              onChange={e => setModel(e.target.value)}
-              placeholder="Type or select a model…"
-              style={{
-                flex: 1,
-                padding: '7px 12px',
-                fontSize: 13,
-                fontFamily: 'ui-monospace, "Fira Code", monospace',
-                border: '1px solid #cbd5e1',
-                borderRadius: 6,
-                background: '#f8fafc',
-                color: '#0f172a',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+            <ModelPicker
+              model={model}
+              onChange={setModel}
+              disabled={false}
+              datalistId="models"
+              options={[
+                'nvidia/nemotron-3-super-120b-a12b:free',
+                'z-ai/glm-4.5-air:free',
+                'qwen/qwen3-next-80b-a3b-instruct:free',
+              ]}
             />
-            <datalist id="models">
-              <option value="nvidia/nemotron-3-super-120b-a12b:free" />
-              <option value="z-ai/glm-4.5-air:free" />
-              <option value="qwen/qwen3-next-80b-a3b-instruct:free" />
-            </datalist>
-            <button
-              onClick={() => {
-                try {
-                  const url = 'https://openrouter.ai/' + (model || '')
-                  window.open(url, '_blank')
-                } catch (e) {
-                  // ignore
-                }
-              }}
-              style={{
-                padding: '7px 12px',
-                fontSize: 13,
-                borderRadius: 6,
-                border: '1px solid #cbd5e1',
-                background: '#eef2ff',
-                color: '#3730a3',
-                cursor: 'pointer'
-              }}
-              title="Open model page on OpenRouter"
-            >
-              View on OpenRouter
-            </button>
           </div>
         </div>
       </div>

@@ -169,9 +169,9 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
             <h3 className="table-title" style={{ margin: 0 }}>OCR Result</h3>
           </div>
           {ocrLoading && <div style={{ padding: 12, color: '#64748b' }}>Running OCR with visual LLM…</div>}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>
             {ocrText ? (
-              <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 11, margin: 0 }}>{ocrText}</pre>
+              <pre style={{ whiteSpace: 'pre', overflowX: 'auto', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 11, margin: 0 }}>{ocrText}</pre>
             ) : (!ocrRequested ? (
               <div style={{ color: '#64748b' }}>No OCR result yet. Run OCR from the controls above.</div>
             ) : null)}

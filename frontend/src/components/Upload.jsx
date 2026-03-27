@@ -154,7 +154,7 @@ export default function Upload({ onOpenViewer }) {
                             if (onOpenViewer) onOpenViewer(u.id)
                           }}
                         >
-                          <span role="img" aria-hidden="true">👁️</span>
+                          <span role="img" aria-hidden="true">✏️</span>
                         </button>
                       )}
                       <button

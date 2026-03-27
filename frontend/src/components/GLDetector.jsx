@@ -122,7 +122,7 @@ Instructions:
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ margin: '8px 0' }}>Extracted Text</h3>
-          <pre style={{ maxHeight: '55vh', whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, color: '#0f172a', overflowY: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>{text}</pre>
+          <pre style={{ maxHeight: '55vh', whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 11, color: '#0f172a', overflowY: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>{text}</pre>
         </div>
       </div>
 

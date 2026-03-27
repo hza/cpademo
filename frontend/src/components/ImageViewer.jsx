@@ -149,9 +149,9 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
           <div style={{ flex: 1, overflowY: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>
             {ocrText ? (
               <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 11, margin: 0 }}>{ocrText}</pre>
-            ) : (
+            ) : (!ocrRequested ? (
               <div style={{ color: '#64748b' }}>No OCR result yet. Run OCR from the controls above.</div>
-            )}
+            ) : null)}
           </div>
         </div>
       </div>

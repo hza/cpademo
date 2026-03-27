@@ -101,8 +101,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Upload onOpenViewer={(id) => { setViewerId(id); navigate(`/image/${id}`) }} />} />
               <Route path="/image/:id" element={<ImageViewer onBack={() => navigate(viewerId ? `/image/${viewerId}` : '/')} onDetectGL={(id, text) => { setGlId(id); setGlText(text || ''); navigate(`/gl/${id}`) }} />} />
-            <Route path="/gl/:id" element={<GLDetector id={glId} text={glText} onBack={() => navigate(viewerId ? `/image/${viewerId}` : '/')} onRunStart={(model, id) => { setGlModel(model || ''); setGlResult(''); setGlId(id); setGlLoading(true); navigate(`/gl/${id}/result`) }} onStream={(chunk) => setGlResult(prev => prev + chunk)} onRunDone={() => setGlLoading(false)} />} />
-            <Route path="/gl/:id/result" element={<GLResult result={glResult} loading={glLoading} model={glModel} onBack={() => navigate((glId ? `/gl/${glId}` : '/'))} />} />
+            <Route path="/gl/:id" element={<GLDetector id={glId} text={glText} onBack={() => navigate(glId ? `/image/${glId}` : (viewerId ? `/image/${viewerId}` : '/'))} onRunStart={(model, id) => { setGlModel(model || ''); setGlResult(''); setGlId(id); setGlLoading(true); navigate(`/gl/${id}/result`) }} onStream={(chunk) => setGlResult(prev => prev + chunk)} onRunDone={() => setGlLoading(false)} />} />
+            <Route path="/gl/:id/result" element={<GLResult result={glResult} loading={glLoading} model={glModel} onBack={() => navigate((glId ? `/image/${glId}` : (viewerId ? `/image/${viewerId}` : '/')))} />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>

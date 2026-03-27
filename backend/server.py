@@ -441,3 +441,13 @@ async def ws_detect_gl(websocket: WebSocket):
             await websocket.close()
         except Exception:
             pass
+
+
+# Catch-all: serve index.html for any unmatched route so React Router handles client-side navigation.
+# Must be registered last so it doesn't shadow API routes.
+@app.get("/{full_path:path}", response_class=HTMLResponse, include_in_schema=False)
+def spa_fallback(full_path: str):
+    index = WEBROOT_DIR / "index.html"
+    if index.exists():
+        return HTMLResponse(index.read_text(encoding="utf-8"))
+    raise HTTPException(status_code=404, detail="Not found")

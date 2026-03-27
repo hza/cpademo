@@ -246,6 +246,21 @@ def textract_by_id(file_id: str, fresh: bool = False) -> JSONResponse:
         # don't fail the request if saving the file fails; just log silently
         pass
 
+    # update metadata JSON to record OCR method (textract) and model (none)
+    try:
+        meta_path = UPLOAD_DIR / f"{stem}.json"
+        meta = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                meta = {}
+        meta["ocrMethod"] = "textract"
+        meta["ocrModel"] = None
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    except Exception:
+        logger.exception("Failed to update metadata JSON with OCR info for %s", stem)
+
     return JSONResponse({"id": file_id, "text": text})
 
 
@@ -276,6 +291,21 @@ def vllm_ocr(file_id: str, model: Optional[str] = None) -> JSONResponse:
         txt_path.write_text(text, encoding="utf-8")
     except Exception:
         logger.exception("Failed to save extracted text for %s", file_id)
+
+    # update metadata JSON to record OCR method (vllm) and model used
+    try:
+        meta_path = UPLOAD_DIR / f"{stem}.json"
+        meta = {}
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                meta = {}
+        meta["ocrMethod"] = "vllm"
+        meta["ocrModel"] = model or None
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    except Exception:
+        logger.exception("Failed to update metadata JSON with vllm OCR info for %s", stem)
 
     return JSONResponse({"id": file_id, "text": text})
 

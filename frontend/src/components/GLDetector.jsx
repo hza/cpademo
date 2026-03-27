@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react"
 import axios from "axios"
 import { useParams } from "react-router-dom"
+import { API } from "../config"
 import ModelPicker from "./ModelPicker"
 
 export default function GLDetector({ id, text: extractedText, onBack, onRunStart, onStream, onRunDone }) {
   const params = useParams()
   const docId = id || params.id
-  const API = "http://localhost:8000"
+  // use API base from config (Vite env / runtime)
   const [prompt, setPrompt] = useState(`You are a Senior Accountant specialized in Chart of Accounts (COA) and automated document processing.
 
 Task: Analyze the provided OCR text from a financial document (Invoice, Bill, or Receipt) and output the correct GL Code of the financial document.
@@ -71,7 +72,9 @@ Instructions:
     setLoading(true)
 
     try {
-      const ws = new WebSocket("ws://localhost:8000/ws/detect_gl")
+      const wsProtocol = API.startsWith('https') ? 'wss' : 'ws'
+      const wsHost = API.replace(/^https?:\/\//, '')
+      const ws = new WebSocket(`${wsProtocol}://${wsHost}/ws/detect_gl`)
       ws.onopen = () => {
         ws.send(JSON.stringify({ id: docId, prompt, model }))
       }

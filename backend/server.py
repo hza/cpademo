@@ -33,7 +33,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Textract Server")
+app = FastAPI(title="CPADemo Server")
 
 # shared Textract client (uses environment AWS credentials)
 client = TextractClient(region=os.environ.get("AWS_REGION", "us-east-1"))

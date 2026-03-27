@@ -136,10 +136,6 @@ export default function Upload({ onOpenViewer }) {
                     </td>
                     <td className="muted">{u.uploadedAt}</td>
                     <td className="actions-cell">
-                      {(!u.has_text && u.status === "Uploaded") && (
-                        <button className="action-btn" onClick={() => extract(u.id)}>Extract Text</button>
-                      )}
-                      {(u.has_text || u.status === "Done") && (
                         <button
                           className="action-btn"
                           title="View"
@@ -155,7 +151,6 @@ export default function Upload({ onOpenViewer }) {
                         >
                           <span role="img" aria-hidden="true">✏️</span>
                         </button>
-                      )}
                       <button
                         className="action-btn"
                         style={{ marginLeft: 8 }}

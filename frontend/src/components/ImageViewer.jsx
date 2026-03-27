@@ -131,9 +131,9 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
                 className="btn-primary"
                 onClick={() => onDetectGL && onDetectGL(docId, ocrText || '')}
                 disabled={!((ocrText && String(ocrText).trim()) || hasText)}
-                title={!((ocrText && String(ocrText).trim()) || hasText) ? 'Run OCR first to enable detector' : 'Open AI Detector'}
+                title={!((ocrText && String(ocrText).trim()) || hasText) ? 'Run OCR first to enable detector' : 'Open GL Code Detector'}
               >
-                Open AI Detector
+                Open GL Code Detector
               </button>
 
               <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={onBack}>Back</button>

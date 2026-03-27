@@ -103,8 +103,8 @@ Instructions:
     <div>
       <div className="section-header-card" style={{ alignItems: 'center' }}>
         <div>
-          <h2 className="section-title">Detect GL Code</h2>
-          <p className="section-sub">Run a configurable agent prompt against the extracted text for <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{docId}</span></p>
+          <h2 className="section-title">GL Code Detector</h2>
+          <p className="section-sub">Run a configurable agent prompt against the extracted text.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn-primary" onClick={runDetection} disabled={loading}>{loading ? 'Detecting…' : 'Detect GL Code'}</button>

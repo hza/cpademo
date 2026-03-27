@@ -15,6 +15,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
   const [error, setError] = useState(null)
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrText, setOcrText] = useState(null)
+  const [ocrRequested, setOcrRequested] = useState(false)
   const [model, setModel] = useState('google/gemini-2.0-flash-001')
   const [ocrMethod, setOcrMethod] = useState('vllm')
 
@@ -92,6 +93,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button className="btn-primary" style={{ background: '#0ea5e9' }} disabled={ocrLoading} onClick={async () => {
                 if (!docId) return
+                setOcrRequested(true)
                 setOcrLoading(true)
                 setOcrText(null)
                 try {
@@ -123,7 +125,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
           <div style={{ marginBottom: 8 }}>
             <h3 className="table-title" style={{ margin: 0 }}>Image</h3>
           </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 8, minHeight: '60vh' }}>
             {loading && <div style={{ color: '#64748b' }}>Loading…</div>}
             {error && <div style={{ color: '#dc2626' }}>{error}</div>}
             {!loading && !error && url && (
@@ -146,7 +148,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
           {ocrLoading && <div style={{ padding: 12, color: '#64748b' }}>Running OCR with visual LLM…</div>}
           <div style={{ flex: 1, overflowY: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>
             {ocrText ? (
-              <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, margin: 0 }}>{ocrText}</pre>
+              <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 11, margin: 0 }}>{ocrText}</pre>
             ) : (
               <div style={{ color: '#64748b' }}>No OCR result yet. Run OCR from the controls above.</div>
             )}

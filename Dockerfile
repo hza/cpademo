@@ -1,3 +1,12 @@
+FROM node:18-alpine AS build
+ARG VITE_API
+ENV VITE_API=${VITE_API}
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --silent
+COPY . .
+RUN npm run build
+
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1
@@ -21,7 +30,7 @@ COPY backend/src/ /app/backend/src/
 
 # Copy frontend build output (if present) into backend webroot
 # This allows the backend to serve the frontend static files from /webroot
-COPY frontend/dist/ /app/backend/webroot/
+COPY --from=build /app/dist/ /app/backend/webroot/
 
 # Ensure uploads directory exists and is writable by the app
 RUN mkdir -p /app/backend/uploads && chmod -R a+rwx /app/backend/uploads

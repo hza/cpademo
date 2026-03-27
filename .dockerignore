@@ -2,11 +2,12 @@
 backend/uploads
 backend/uploads/**
 
+# Exclude environment variable files
+backend/.env
+backend/.env.sample
+
 # Common ignores
 .venv
 __pycache__
 .git
 *.pyc
-
-.env
-.env.sample

@@ -2,9 +2,8 @@ FROM node:18-alpine AS build
 ARG VITE_API
 ENV VITE_API=${VITE_API}
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --silent
-COPY . .
+COPY frontend/ .
+RUN npm install --silent --no-audit --no-fund
 RUN npm run build
 
 FROM python:3.11-slim
@@ -12,11 +11,6 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
-
-# Install minimal build tools and libmagic (common for text extraction libs)
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libmagic1 \
-    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY backend/requirements.txt /app/requirements.txt

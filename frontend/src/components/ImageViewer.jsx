@@ -117,26 +117,42 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
         </div>
       </div>
 
-      <div className="table-card" style={{ padding: 20, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {loading && <div style={{ color: '#64748b' }}>Loading…</div>}
-        {error && <div style={{ color: '#dc2626' }}>{error}</div>}
-        {!loading && !error && url && (
-          type.startsWith('image/') ? (
-            <img src={url} alt={docId} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 8 }} />
-          ) : type === 'application/pdf' ? (
-            <iframe src={url} title={docId} style={{ width: '100%', height: '80vh', border: 'none' }} />
-          ) : (
-            <a href={url} download style={{ color: '#0ea5e9' }}>Download file</a>
-          )
-        )}
-      </div>
-      {ocrLoading && <div style={{ padding: 12, color: '#64748b' }}>Running OCR with visual LLM…</div>}
-      {ocrText && (
-        <div className="table-card" style={{ marginTop: 12 }}>
-          <h3 className="table-title">OCR Result</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{ocrText}</pre>
+      <div className="table-card" style={{ padding: 10, minHeight: '60vh', display: 'flex', gap: 12, alignItems: 'stretch' }}>
+        {/* Left: image/pdf display */}
+        <div style={{ width: '40%', minWidth: 320, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ marginBottom: 8 }}>
+            <h3 className="table-title" style={{ margin: 0 }}>Image</h3>
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+            {loading && <div style={{ color: '#64748b' }}>Loading…</div>}
+            {error && <div style={{ color: '#dc2626' }}>{error}</div>}
+            {!loading && !error && url && (
+              type.startsWith('image/') ? (
+                <img src={url} alt={docId} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 8 }} />
+              ) : type === 'application/pdf' ? (
+                <iframe src={url} title={docId} style={{ width: '100%', height: '80vh', border: 'none' }} />
+              ) : (
+                <a href={url} download style={{ color: '#0ea5e9' }}>Download file</a>
+              )
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Right: OCR text */}
+        <div style={{ width: '60%', minWidth: 320, maxWidth: '60%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 className="table-title" style={{ margin: 0 }}>OCR Result</h3>
+          </div>
+          {ocrLoading && <div style={{ padding: 12, color: '#64748b' }}>Running OCR with visual LLM…</div>}
+          <div style={{ flex: 1, overflowY: 'auto', padding: 12, borderRadius: 8, background: '#fbfdff' }}>
+            {ocrText ? (
+              <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, margin: 0 }}>{ocrText}</pre>
+            ) : (
+              <div style={{ color: '#64748b' }}>No OCR result yet. Run OCR from the controls above.</div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,10 +1,32 @@
-import React from "react"
+import React, { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { API } from "../config"
 
 export default function GLResult({ result, onBack, loading = false, model = '' }) {
   const params = useParams()
   const docId = params.id
   const navigate = useNavigate()
+  const [content, setContent] = useState(result || '')
+
+  useEffect(() => {
+    // if we don't have a result (e.g. after page refresh), try to load persisted LLM result
+    let cancelled = false
+    const fetchSaved = async () => {
+      if (content && content.length > 0) return
+      try {
+        const res = await fetch(`${API}/llm/${docId}`)
+        if (res.ok) {
+          const j = await res.json()
+          if (!cancelled) setContent(j.text || '')
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    fetchSaved()
+    return () => { cancelled = true }
+  }, [docId])
+
   return (
     <div>
       <div className="section-header-card" style={{ alignItems: 'center' }}>
@@ -36,8 +58,8 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
           </div>
         ) : (
           <>
-            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, color: '#0f172a', padding: 12, borderRadius: 8, background: '#fbfdff', maxHeight: '240px', overflowY: 'auto' }}>{result}</pre>
-            {(!loading && result && result.length > 0) && (
+            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, color: '#0f172a', padding: 12, borderRadius: 8, background: '#fbfdff', maxHeight: '240px', overflowY: 'auto' }}>{content}</pre>
+            {(!loading && content && content.length > 0) && (
               <div style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>AI may make mistakes — verify before using.</div>
             )}
           </>

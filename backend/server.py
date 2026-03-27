@@ -367,6 +367,12 @@ def detect_gl(req: DetectRequest) -> JSONResponse:
         if not os.environ.get("OPENROUTER_API_KEY"):
             raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is not set. Set it in the environment to call the LLM.")
         result = run_prompt(req.prompt, doc_text, model=req.model)
+        # persist LLM result to <id>.llm.txt so it survives page refreshes
+        try:
+            llm_path = UPLOAD_DIR / f"{stem}.llm.txt"
+            llm_path.write_text(result or "", encoding="utf-8")
+        except Exception:
+            logger.exception("Failed to save LLM result for %s", stem)
     except Exception as e:
         # If an HTTPException was raised above, re-raise it; otherwise return 500
         if isinstance(e, HTTPException):
@@ -374,6 +380,23 @@ def detect_gl(req: DetectRequest) -> JSONResponse:
         raise HTTPException(status_code=500, detail=str(e))
 
     return JSONResponse({"result": result})
+
+
+@app.get("/llm/{file_id}")
+def get_llm_result(file_id: str) -> JSONResponse:
+    """Return previously saved LLM result for given id (if present)."""
+    path = _find_file_by_id(file_id)
+    if not path:
+        raise HTTPException(status_code=404, detail="file id not found")
+    stem = path.stem
+    llm_path = UPLOAD_DIR / f"{stem}.llm.txt"
+    if not llm_path.exists():
+        raise HTTPException(status_code=404, detail="llm result not found")
+    try:
+        txt = llm_path.read_text(encoding="utf-8")
+        return JSONResponse({"id": file_id, "text": txt})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"failed to read llm result: {e}")
 
 
 @app.websocket("/ws/detect_gl")
@@ -417,9 +440,22 @@ async def ws_detect_gl(websocket: WebSocket):
 
         def produce():
             try:
-                # stream LLM output to client without persisting to disk
+                # stream LLM output to client and collect chunks to persist after completion
+                chunks = []
                 for chunk in run_prompt_stream(prompt, doc_text, model=model):
                     asyncio.run_coroutine_threadsafe(websocket.send_text(chunk), loop)
+                    try:
+                        chunks.append(chunk)
+                    except Exception:
+                        logger.exception("Failed to buffer stream chunk for %s", file_id)
+
+                # after streaming completes, persist the collected LLM output to <id>.llm.txt
+                try:
+                    stem = path.stem
+                    llm_path = UPLOAD_DIR / f"{stem}.llm.txt"
+                    llm_path.write_text(''.join(chunks), encoding="utf-8")
+                except Exception:
+                    logger.exception("Failed to save streamed LLM result for %s", file_id)
 
                 asyncio.run_coroutine_threadsafe(websocket.send_text('[[DONE]]'), loop)
             except Exception as e:

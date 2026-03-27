@@ -125,7 +125,6 @@ export default function Upload({ onOpenViewer }) {
               <tr>
                 <th>FILE</th>
                 <th>UPLOADED</th>
-                <th>STATUS</th>
                 <th>ACTIONS</th>
               </tr>
             </thead>
@@ -137,7 +136,6 @@ export default function Upload({ onOpenViewer }) {
                       <a className="file-link" onClick={() => u.id && navigate(`/image/${u.id}`)} style={{ cursor: 'pointer', color: '#0ea5e9' }}>{u.name}</a>
                     </td>
                     <td className="muted">{u.uploadedAt}</td>
-                    <td>{statusBadge(u.status)}</td>
                     <td className="actions-cell">
                       {(!u.has_text && u.status === "Uploaded") && (
                         <button className="action-btn" onClick={() => extract(u.id)}>Extract Text</button>
@@ -195,7 +193,7 @@ export default function Upload({ onOpenViewer }) {
               ))}
               {uploads.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>
+                  <td colSpan={3} style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>
                     No uploads yet. Drop a file above to get started.
                   </td>
                 </tr>

@@ -128,7 +128,6 @@ Instructions:
 
       <div className="table-card" style={{ padding: '12px 20px', marginTop: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>LLM Model</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             <ModelPicker
               model={model}

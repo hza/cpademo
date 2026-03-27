@@ -4,7 +4,7 @@ export default function ModelPicker({ model, onChange, disabled, options = [], d
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <label htmlFor={datalistId + '-input'} style={{ opacity: disabled ? 0.4 : 1 }}>
-        Model:
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>LLM Model: </span>
       </label>
       <input
         id={datalistId + '-input'}

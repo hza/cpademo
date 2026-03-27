@@ -5,7 +5,7 @@ import ModelPicker from "./ModelPicker"
 
 const API = "http://localhost:8000"
 
-export default function ImageViewer({ id, onBack }) {
+export default function ImageViewer({ id, onBack, onDetectGL }) {
   const params = useParams()
   const docId = id || params.id
   const [url, setUrl] = useState(null)
@@ -108,6 +108,8 @@ export default function ImageViewer({ id, onBack }) {
                   setOcrLoading(false)
                 }
               }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>
+
+              <button className="btn-primary" onClick={() => onDetectGL && onDetectGL(docId, ocrText || '')}>Open AI Detector</button>
 
               <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={onBack}>Back</button>
             </div>

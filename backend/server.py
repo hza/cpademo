@@ -210,7 +210,7 @@ def delete_upload(file_id: str) -> JSONResponse:
 
 
 @app.get("/textract/{file_id}")
-def textract_by_id(file_id: str) -> JSONResponse:
+def textract_by_id(file_id: str, fresh: bool = False) -> JSONResponse:
     """Run Textract on the previously uploaded file and return extracted text."""
     path = _find_file_by_id(file_id)
     if not path:
@@ -220,7 +220,8 @@ def textract_by_id(file_id: str) -> JSONResponse:
     # Look for extracted text in new style: <id>.txt
     stem = path.stem
     new_text = UPLOAD_DIR / f"{stem}.txt"
-    if new_text.exists():
+    # If cached text exists and the client didn't request a fresh extraction, return cached
+    if new_text.exists() and not fresh:
         try:
             # prefer new_text; if only old_text exists, migrate it to new_text
             txt = new_text.read_text(encoding="utf-8")

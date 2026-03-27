@@ -85,7 +85,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
                   'google/gemini-2.0-flash-001',
                   'google/gemini-2.5-flash',
                   'google/gemini-3-flash-preview',
-                  'anthropic/claude-3',
+                  'black-forest-labs/flux.2-max',
                 ]}
               />
             </div>
@@ -98,7 +98,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
                 setOcrText(null)
                 try {
                   if (ocrMethod === 'textract') {
-                    const res = await axios.get(`${API}/textract/${docId}`)
+                    const res = await axios.get(`${API}/textract/${docId}?fresh=1`)
                     setOcrText(res.data.text)
                   } else {
                     const res = await axios.post(`${API}/vllm/ocr/${docId}?model=${encodeURIComponent(model)}`)

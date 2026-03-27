@@ -2,16 +2,11 @@
 """
 vllm.py
 
-Helpers for running visual OCR through OpenRouter (visual LLM) with a
-local pytesseract fallback when an API key or model is not available.
+Helpers for running visual OCR through OpenRouter (visual LLM).
 
 Functions:
 - ocr_with_openrouter(path, api_key=None, model=None) -> dict
-- ocr_with_tesseract(path) -> dict
-- run_visual_ocr(path, api_key=None, model=None) -> dict  # tries OpenRouter then tesseract
-
-This module is intentionally defensive: if OpenRouter calls fail it will
-fall back to local OCR if possible.
+- run_visual_ocr(path, api_key=None, model=None) -> dict
 """
 
 from __future__ import annotations
@@ -97,37 +92,13 @@ def ocr_with_openrouter(path: str, api_key: str | None = None, model: str | None
         raise
 
 
-def ocr_with_tesseract(path: str) -> dict:
-    """Perform OCR using local pytesseract (Tesseract must be installed).
-
-    Returns a dict: {"text": "..."}
-    """
-    try:
-        from PIL import Image
-        import pytesseract
-    except Exception as e:
-        raise RuntimeError("pytesseract and Pillow are required for local OCR") from e
-
-    img = Image.open(path)
-    text = pytesseract.image_to_string(img)
-    return {"text": text}
-
-
 def run_visual_ocr(path: str, api_key: str | None = None, model: str | None = None) -> dict:
-    """Try OpenRouter visual OCR first, fall back to local tesseract if it fails.
+    """Try OpenRouter visual OCR.
 
     Returns a dict containing at least the `text` key.
     """
-    # Try remote OpenRouter visual model first
-    try:
-        return ocr_with_openrouter(path, api_key=api_key, model=model)
-    except Exception:
-        logger.info("Falling back to local tesseract OCR for %s", path)
-        try:
-            return ocr_with_tesseract(path)
-        except Exception as e:
-            logger.exception("Local OCR failed: %s", e)
-            raise RuntimeError("both OpenRouter and local OCR failed") from e
+    # Run OpenRouter visual OCR (no local fallback)
+    return ocr_with_openrouter(path, api_key=api_key, model=model)
 
 
 def main() -> None:

@@ -373,6 +373,20 @@ def detect_gl(req: DetectRequest) -> JSONResponse:
             llm_path.write_text(result or "", encoding="utf-8")
         except Exception:
             logger.exception("Failed to save LLM result for %s", stem)
+        # update metadata JSON with LLM model used
+        try:
+            meta_path = UPLOAD_DIR / f"{stem}.json"
+            meta = {}
+            if meta_path.exists():
+                try:
+                    meta = json.loads(meta_path.read_text(encoding="utf-8")) or {}
+                except Exception:
+                    meta = {}
+            meta["llmMethod"] = "llm"
+            meta["llmModel"] = req.model or None
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        except Exception:
+            logger.exception("Failed to update metadata JSON with LLM info for %s", stem)
     except Exception as e:
         # If an HTTPException was raised above, re-raise it; otherwise return 500
         if isinstance(e, HTTPException):
@@ -394,7 +408,16 @@ def get_llm_result(file_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="llm result not found")
     try:
         txt = llm_path.read_text(encoding="utf-8")
-        return JSONResponse({"id": file_id, "text": txt})
+        # attempt to include saved model name from metadata JSON
+        model = None
+        try:
+            meta_path = UPLOAD_DIR / f"{stem}.json"
+            if meta_path.exists():
+                m = json.loads(meta_path.read_text(encoding="utf-8")) or {}
+                model = m.get("llmModel") or m.get("ocrModel")
+        except Exception:
+            logger.exception("Failed to read metadata JSON for %s", stem)
+        return JSONResponse({"id": file_id, "text": txt, "model": model})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"failed to read llm result: {e}")
 
@@ -456,6 +479,20 @@ async def ws_detect_gl(websocket: WebSocket):
                     llm_path.write_text(''.join(chunks), encoding="utf-8")
                 except Exception:
                     logger.exception("Failed to save streamed LLM result for %s", file_id)
+                # update metadata JSON with LLM model used
+                try:
+                    meta_path = UPLOAD_DIR / f"{stem}.json"
+                    meta = {}
+                    if meta_path.exists():
+                        try:
+                            meta = json.loads(meta_path.read_text(encoding="utf-8")) or {}
+                        except Exception:
+                            meta = {}
+                    meta["llmMethod"] = "llm"
+                    meta["llmModel"] = model or None
+                    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+                except Exception:
+                    logger.exception("Failed to update metadata JSON with LLM info for %s", stem)
 
                 asyncio.run_coroutine_threadsafe(websocket.send_text('[[DONE]]'), loop)
             except Exception as e:

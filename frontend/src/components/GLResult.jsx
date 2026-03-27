@@ -7,6 +7,7 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
   const docId = params.id
   const navigate = useNavigate()
   const [content, setContent] = useState(result || '')
+  const [detModel, setDetModel] = useState(model || '')
 
   useEffect(() => {
     // if we don't have a result (e.g. after page refresh), try to load persisted LLM result
@@ -17,7 +18,10 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
         const res = await fetch(`${API}/llm/${docId}`)
         if (res.ok) {
           const j = await res.json()
-          if (!cancelled) setContent(j.text || '')
+          if (!cancelled) {
+            setContent(j.text || '')
+            if (!detModel && j.model) setDetModel(j.model || '')
+          }
         }
       } catch (e) {
         // ignore
@@ -32,7 +36,7 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
       <div className="section-header-card" style={{ alignItems: 'center' }}>
         <div>
           <h2 className="section-title">GL Detection Result</h2>
-          <p className="section-sub">Result returned by the {model ? <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{model}</span> : ''} model</p>
+          <p className="section-sub">Result returned by the {detModel ? <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{detModel}</span> : ''} model</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={() => (navigate(`/gl/${docId}`))}>Back</button>

@@ -133,7 +133,7 @@ export default function Upload({ onOpenViewer }) {
                 <React.Fragment key={u.id || i}>
                   <tr>
                     <td className="file-name">
-                      <a className="file-link" onClick={() => u.id && navigate(`/image/${u.id}`)} style={{ cursor: 'pointer', color: '#0ea5e9' }}>{u.name}</a>
+                      <a className="file-link" onClick={() => u.id && navigate(`/image/${u.id}`)} style={{ cursor: 'pointer', color: '#0ea5e9', textDecoration: 'underline' }}>{u.name}</a>
                     </td>
                     <td className="muted">{u.uploadedAt}</td>
                     <td className="actions-cell">

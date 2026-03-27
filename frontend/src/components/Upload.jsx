@@ -143,14 +143,20 @@ export default function Upload({ onOpenViewer }) {
                         <button className="action-btn" onClick={() => extract(u.id)}>Extract Text</button>
                       )}
                       {(u.has_text || u.status === "Done") && (
-                        <button className="action-btn" onClick={async () => {
-                          // ensure text exists (extract if needed), then open viewer in-app
-                          if (!u.has_text) {
-                            await extract(u.id)
-                          }
-                          if (onOpenViewer) onOpenViewer(u.id)
-                        }}>
-                          View Text
+                        <button
+                          className="action-btn"
+                          title="View"
+                          aria-label="View"
+                          style={{ padding: '6px 10px', fontSize: 16, lineHeight: 1 }}
+                          onClick={async () => {
+                            // ensure text exists (extract if needed), then open viewer in-app
+                            if (!u.has_text) {
+                              await extract(u.id)
+                            }
+                            if (onOpenViewer) onOpenViewer(u.id)
+                          }}
+                        >
+                          <span role="img" aria-hidden="true">👁️</span>
                         </button>
                       )}
                       <button

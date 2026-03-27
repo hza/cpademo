@@ -16,6 +16,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrText, setOcrText] = useState(null)
   const [ocrRequested, setOcrRequested] = useState(false)
+  const [hasText, setHasText] = useState(false)
   const [model, setModel] = useState('google/gemini-2.0-flash-001')
   const [ocrMethod, setOcrMethod] = useState('vllm')
 
@@ -42,6 +43,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
         const res = await axios.get(`${API}/uploads`)
         const item = (res.data.uploads || []).find(u => String(u.id) === String(docId))
         if (item && item.name) setDisplayName(item.name)
+        if (item) setHasText(!!item.has_text)
       } catch (e) {
         // ignore metadata errors
       }
@@ -85,7 +87,7 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
                   'google/gemini-2.0-flash-001',
                   'google/gemini-2.5-flash',
                   'google/gemini-3-flash-preview',
-                  'black-forest-labs/flux.2-max',
+                  'mistralai/pixtral-large-2411',
                 ]}
               />
             </div>
@@ -111,7 +113,14 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
                 }
               }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>
 
-              <button className="btn-primary" onClick={() => onDetectGL && onDetectGL(docId, ocrText || '')}>Open AI Detector</button>
+              <button
+                className="btn-primary"
+                onClick={() => onDetectGL && onDetectGL(docId, ocrText || '')}
+                disabled={!((ocrText && String(ocrText).trim()) || hasText)}
+                title={!((ocrText && String(ocrText).trim()) || hasText) ? 'Run OCR first to enable detector' : 'Open AI Detector'}
+              >
+                Open AI Detector
+              </button>
 
               <button className="btn-primary" style={{ background: '#94a3b8', marginLeft: 8 }} onClick={onBack}>Back</button>
             </div>

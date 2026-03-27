@@ -65,7 +65,14 @@ export default function TextViewer({ id, onBack, onDetectGL }) {
           <p className="section-sub">Viewing text for <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{docId}</span></p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-primary" onClick={() => onDetectGL && onDetectGL(docId, text)}>Open AI Detector</button>
+          <button
+            className="btn-primary"
+            onClick={() => onDetectGL && onDetectGL(docId, text)}
+            disabled={!text || !String(text).trim()}
+            title={!text || !String(text).trim() ? 'No OCR text available' : 'Open AI Detector'}
+          >
+            Open AI Detector
+          </button>
           <button className="btn-primary" onClick={download}>Download Text</button>
           <button className="btn-primary" onClick={downloadOriginal} style={{ background: '#6ee7b7', color: '#063' }}>Download Image</button>
           <button className="btn-primary" style={{ background: '#94a3b8' }} onClick={onBack}>Back</button>

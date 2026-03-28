@@ -8,12 +8,19 @@ export default function Upload({ onOpenViewer }) {
   const [uploads, setUploads] = useState([])
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [documentLink, setDocumentLink] = useState("")
+  const [linkError, setLinkError] = useState("")
   // no inline expansion; viewer opens in new page
   const inputRef = useRef()
 
   // Load existing uploads from backend on mount
   useEffect(() => {
-    axios.get(`${API}/uploads`).then(res => {
+    refreshUploads()
+  }, [])
+
+  const refreshUploads = async () => {
+    try {
+      const res = await axios.get(`${API}/uploads`)
       const existing = res.data.uploads.map(u => ({
         id: u.id,
         name: u.name,
@@ -23,41 +30,60 @@ export default function Upload({ onOpenViewer }) {
         text: null,
       }))
       setUploads(existing)
-    }).catch(() => {})
-  }, [])
+    } catch {
+    }
+  }
 
   const doUpload = async (file) => {
     if (!file || busy) return
+    setLinkError("")
     setBusy(true)
     const fd = new FormData()
     fd.append("file", file)
     const entry = { id: null, name: file.name, status: "Uploading", uploadedAt: new Date().toLocaleString(), text: null }
     setUploads(prev => [entry, ...prev])
     try {
-      const res = await axios.post(`${API}/upload`, fd)
+      await axios.post(`${API}/upload`, fd)
       // refresh server-side listing so the displayed filename matches storage (doc-...)
       try {
-        const list = await axios.get(`${API}/uploads`)
-        const existing = list.data.uploads.map(u => ({
-          id: u.id,
-          name: u.name,
-          status: u.has_text ? "Done" : "Uploaded",
-          has_text: u.has_text || false,
-          uploadedAt: new Date(u.uploadedAt * 1000).toLocaleString(),
-          text: null,
-        }))
-        setUploads(existing)
+        await refreshUploads()
       } catch {
         // fallback to updating the optimistic entry if listing failed
         setUploads(prev => prev.map(u =>
           u.name === file.name && u.status === "Uploading"
-            ? { ...u, id: res.data.id, status: "Uploaded" }
+            ? { ...u, status: "Uploaded" }
             : u
         ))
       }
     } catch {
       setUploads(prev => prev.map(u =>
         u.name === file.name && u.status === "Uploading"
+          ? { ...u, status: "Failed" }
+          : u
+      ))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const uploadDocumentLink = async () => {
+    const url = documentLink.trim()
+    if (!url || busy) return
+
+    setLinkError("")
+    setBusy(true)
+    const entry = { id: null, name: url, status: "Uploading", uploadedAt: new Date().toLocaleString(), text: null }
+    setUploads(prev => [entry, ...prev])
+
+    try {
+      await axios.post(`${API}/upload-link`, { url })
+      setDocumentLink("")
+      await refreshUploads()
+    } catch (error) {
+      const message = error?.response?.data?.detail || "Failed to download document link"
+      setLinkError(message)
+      setUploads(prev => prev.map(u =>
+        u.name === url && u.status === "Uploading"
           ? { ...u, status: "Failed" }
           : u
       ))
@@ -92,11 +118,33 @@ export default function Upload({ onOpenViewer }) {
     <div>
       {/* Page intro card */}
       <div className="section-header-card">
-        <div>
+        <div className="section-header-main">
           <h2 className="section-title">My Documents</h2>
           <p className="section-sub">Upload images or PDFs and extract structured text using AWS Textract and then run AI pipelines for further analysis.</p>
+          <div className="link-upload-row">
+            <label className="sr-only" htmlFor="document-link">Paste document link</label>
+            <input
+              id="document-link"
+              className="link-upload-input"
+              type="url"
+              placeholder="Paste document link"
+              value={documentLink}
+              onChange={e => setDocumentLink(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  uploadDocumentLink()
+                }
+              }}
+              disabled={busy}
+            />
+            <button className="btn-primary" onClick={uploadDocumentLink} disabled={busy || !documentLink.trim()}>
+              Upload
+            </button>
+          </div>
+          {linkError && <p className="link-upload-error">{linkError}</p>}
         </div>
-        <button className="btn-primary" onClick={() => inputRef.current.click()}>
+        <button className="btn-primary" onClick={() => inputRef.current.click()} disabled={busy}>
           ⬆ Upload New File
         </button>
         <input ref={inputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}
@@ -109,7 +157,7 @@ export default function Upload({ onOpenViewer }) {
         onDragOver={e => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        onClick={() => inputRef.current.click()}
+        onClick={() => !busy && inputRef.current.click()}
       >
         <div className="dropzone-icon">📂</div>
         <p className="dropzone-text">Drag &amp; drop a file here, or <span className="dropzone-link">click to browse</span></p>

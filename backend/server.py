@@ -4,6 +4,8 @@ import os
 import uuid
 from pathlib import Path
 from typing import Optional
+from urllib.parse import unquote, urlparse
+from urllib.request import Request, urlopen
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
@@ -82,6 +84,56 @@ def health() -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
+def _write_upload_metadata(file_id: str, filename: str, uploaded_at: float, content_type: str, source_url: Optional[str] = None) -> None:
+    meta = {
+        "filename": filename,
+        "uploadedAt": uploaded_at,
+        "contentType": content_type,
+    }
+    if source_url:
+        meta["sourceUrl"] = source_url
+
+    meta_path = UPLOAD_DIR / f"{file_id}.json"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+
+def _store_upload_bytes(
+    *,
+    file_id: str,
+    filename: str,
+    contents: bytes,
+    content_type: Optional[str] = None,
+    source_url: Optional[str] = None,
+) -> Path:
+    suffix = Path(filename).suffix or ""
+    dest = UPLOAD_DIR / f"{file_id}{suffix}"
+    dest.write_bytes(contents)
+
+    uploaded_at = dest.stat().st_mtime
+    resolved_content_type = content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    _write_upload_metadata(file_id, filename, uploaded_at, resolved_content_type, source_url=source_url)
+    return dest
+
+
+def _filename_from_url(url: str, content_type: Optional[str]) -> str:
+    parsed = urlparse(url)
+    raw_name = Path(unquote(parsed.path)).name
+    if raw_name:
+        return raw_name
+
+    guessed_ext = mimetypes.guess_extension((content_type or "").split(";")[0].strip()) or ""
+    return f"downloaded-document{guessed_ext}"
+
+
+def _is_supported_remote_document(filename: str, content_type: Optional[str]) -> bool:
+    normalized_type = (content_type or "").split(";")[0].strip().lower()
+    if normalized_type.startswith("image/") or normalized_type == "application/pdf":
+        return True
+
+    guessed_type = mimetypes.guess_type(filename)[0] or ""
+    return guessed_type.startswith("image/") or guessed_type == "application/pdf"
+
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
     """Upload an image/PDF and receive an `id` to reference it later.
@@ -89,25 +141,63 @@ async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
     Returns JSON: {"id": "<id>"}
     """
     file_id = uuid.uuid4().hex
-    suffix = Path(file.filename).suffix or ""
-    dest = UPLOAD_DIR / f"{file_id}{suffix}"
     try:
         contents = await file.read()
-        dest.write_bytes(contents)
+        filename = file.filename or "uploaded-file"
+        dest = _store_upload_bytes(
+            file_id=file_id,
+            filename=filename,
+            contents=contents,
+            content_type=getattr(file, "content_type", None),
+        )
         logger.info("Saved upload '%s' to %s", file.filename, dest)
-        # create metadata JSON referencing the original filename and upload time
-        # metadata filename uses bare id (no prefix)
-        meta = UPLOAD_DIR / f"{file_id}.json"
-        try:
-            uploaded_at = dest.stat().st_mtime
-            # prefer provided upload content type, else guess from filename
-            content_type = getattr(file, 'content_type', None) or mimetypes.guess_type(file.filename)[0] or 'application/octet-stream'
-            meta.write_text(json.dumps({"filename": file.filename, "uploadedAt": uploaded_at, "contentType": content_type}), encoding="utf-8")
-        except Exception:
-            logger.exception("Failed to write metadata for upload %s", dest)
     except Exception as e:
-        logger.exception("Failed to save upload '%s' -> %s", file.filename, dest)
+        logger.exception("Failed to save upload '%s'", file.filename)
         raise HTTPException(status_code=500, detail=f"failed to save upload: {e}")
+    return JSONResponse({"id": file_id})
+
+
+class UploadLinkRequest(BaseModel):
+    url: str
+
+
+@app.post("/upload-link")
+def upload_link(req: UploadLinkRequest) -> JSONResponse:
+    """Download a remote document into the uploads directory and return its id."""
+    url = (req.url or "").strip()
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="invalid document URL")
+
+    file_id = uuid.uuid4().hex
+    request = Request(url, headers={"User-Agent": "textract-uploader/1.0"})
+
+    try:
+        with urlopen(request, timeout=20) as response:
+            content_type = response.headers.get_content_type() or response.headers.get("Content-Type")
+            contents = response.read()
+
+        if not contents:
+            raise HTTPException(status_code=400, detail="downloaded file is empty")
+
+        filename = _filename_from_url(url, content_type)
+        if not _is_supported_remote_document(filename, content_type):
+            raise HTTPException(status_code=400, detail="remote document must be an image or PDF")
+
+        dest = _store_upload_bytes(
+            file_id=file_id,
+            filename=filename,
+            contents=contents,
+            content_type=content_type,
+            source_url=url,
+        )
+        logger.info("Downloaded remote upload '%s' to %s", url, dest)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to download remote upload '%s'", url)
+        raise HTTPException(status_code=400, detail=f"failed to download document: {e}")
+
     return JSONResponse({"id": file_id})
 
 
@@ -294,8 +384,8 @@ def vllm_ocr(file_id: str, model: Optional[str] = None) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"vllm ocr failed: {e}")
 
     # persist as extracted text for future requests (vllm output should be saved)
+    stem = path.stem
     try:
-        stem = path.stem
         txt_path = UPLOAD_DIR / f"{stem}.txt"
         txt_path.write_text(text, encoding="utf-8")
     except Exception:
@@ -540,6 +630,7 @@ async def ws_detect_gl(websocket: WebSocket):
             try:
                 # stream LLM output to client and collect chunks to persist after completion
                 chunks = []
+                stem = path.stem
                 for chunk in run_prompt_stream(prompt, doc_text, model=model):
                     asyncio.run_coroutine_threadsafe(websocket.send_text(chunk), loop)
                     try:
@@ -549,7 +640,6 @@ async def ws_detect_gl(websocket: WebSocket):
 
                 # after streaming completes, persist the collected LLM output to <id>.llm.txt
                 try:
-                    stem = path.stem
                     llm_path = UPLOAD_DIR / f"{stem}.llm.txt"
                     llm_path.write_text(''.join(chunks), encoding="utf-8")
                 except Exception:

@@ -131,32 +131,12 @@ export default function Upload({ onOpenViewer }) {
         <div className="section-header-main">
           <h2 className="section-title">My Documents</h2>
           <p className="section-sub">Upload images or PDFs and extract structured text using AWS Textract and then run AI pipelines for further analysis.</p>
-          <div className="link-upload-row">
-            <label className="sr-only" htmlFor="document-link">Paste document link</label>
-            <input
-              id="document-link"
-              className="link-upload-input"
-              type="url"
-              placeholder="Paste document link"
-              value={documentLink}
-              onChange={e => setDocumentLink(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  uploadDocumentLink()
-                }
-              }}
-              disabled={busy}
-            />
-            <button className="btn-primary" onClick={uploadDocumentLink} disabled={busy || !documentLink.trim()}>
-              Upload
-            </button>
-          </div>
-          {linkError && <p className="link-upload-error">{linkError}</p>}
         </div>
-        <button className="btn-primary" onClick={() => inputRef.current.click()} disabled={busy}>
-          ⬆ Upload New File
-        </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button className="btn-primary" onClick={() => inputRef.current.click()} disabled={busy}>
+            ⬆ Upload New File
+          </button>
+        </div>
         <input ref={inputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}
           onChange={e => doUpload(e.target.files[0])} />
       </div>
@@ -170,8 +150,33 @@ export default function Upload({ onOpenViewer }) {
         onClick={() => !busy && inputRef.current.click()}
       >
         <div className="dropzone-icon">📂</div>
-        <p className="dropzone-text">Drag &amp; drop a file here, or <span className="dropzone-link">click to browse</span></p>
+        <p className="dropzone-text">Drag an image here or <span className="dropzone-link">upload a file</span></p>
         <p className="dropzone-hint">PDF, PNG, JPEG, TIFF — up to 10 MB</p>
+
+        <div className="or-divider" aria-hidden="true"><span>OR</span></div>
+
+        <div className="link-upload-row" onClick={e => e.stopPropagation()}>
+          <label className="sr-only" htmlFor="document-link">Paste image link</label>
+          <input
+            id="document-link"
+            className="link-upload-input"
+            type="url"
+            placeholder="Paste image link"
+            value={documentLink}
+            onChange={e => setDocumentLink(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                uploadDocumentLink()
+              }
+            }}
+            disabled={busy}
+          />
+          <button className="link-upload-btn" onClick={uploadDocumentLink} disabled={busy || !documentLink.trim()}>
+            Upload
+          </button>
+        </div>
+        {linkError && <p className="link-upload-error">{linkError}</p>}
       </div>
 
       {/* Uploads table — always visible */}

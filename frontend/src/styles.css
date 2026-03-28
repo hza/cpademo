@@ -115,20 +115,23 @@ button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:
 .link-upload-row{
   display:flex;align-items:center;gap:12px;
   margin-top:6px;
-  width:100%;
+  width:100%;max-width:980px;padding:0 24px;box-sizing:border-box
 }
 .link-upload-input{
   flex:1;min-width:0;
-  height:40px;
-  border:1px solid #cbd5e1;
-  border-radius:8px;
-  padding:0 14px;
-  font-size:13px;
-  color:#0f172a;
-  background:#fff;
+  height:46px;
+  border:1px solid #e6eef9;
+  border-radius:999px;
+  padding:0 20px;
+  font-size:15px;color:#222;background:#fff;box-shadow:none
 }
-.link-upload-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.12)}
+.link-upload-input:focus{outline:none;border-color:#d0e7ff;box-shadow:0 6px 26px rgba(37,99,235,0.06)}
 .link-upload-input:disabled{background:#f8fafc;color:#94a3b8}
+.link-upload-btn{
+  height:46px;padding:0 22px;border-radius:999px;background:#fff;border:1px solid #e6eef9;color:#2563eb;font-weight:600;cursor:pointer
+}
+.link-upload-btn:hover{background:#f8fbff}
+.link-upload-btn:disabled{opacity:0.6;cursor:not-allowed}
 .link-upload-error{margin-top:8px;font-size:12px;color:#dc2626}
 .sr-only{
   position:absolute;
@@ -157,20 +160,25 @@ button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:
 
 /* ── Drop zone ── */
 .dropzone{
-  background:#fff;border-radius:12px;
+  background:#fff;border-radius:18px;
   border:2px dashed #cbd5e1;
-  padding:48px 32px;
+  padding:36px 32px;
   text-align:center;
   cursor:pointer;
   margin-bottom:20px;
   transition:border-color .2s,background .2s;
-  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  box-shadow:0 6px 20px rgba(2,6,23,0.06);
+  min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
 }
 .dropzone:hover,.dropzone.dragging{border-color:#2563eb;background:#eff6ff}
-.dropzone-icon{font-size:36px;margin-bottom:10px}
-.dropzone-text{font-size:14px;color:#334155;margin-bottom:4px}
+.dropzone-icon{font-size:40px;margin-bottom:4px}
+.dropzone-text{font-size:16px;color:#3b3b3b;margin-bottom:0}
 .dropzone-link{color:#2563eb;text-decoration:underline}
 .dropzone-hint{font-size:12px;color:#94a3b8}
+
+.or-divider{width:100%;display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:4px}
+.or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:#e6eef9}
+.or-divider span{padding:8px 12px;border-radius:999px;background:#fff;color:#64748b;font-weight:600}
 
 /* ── Table card ── */
 .table-card{

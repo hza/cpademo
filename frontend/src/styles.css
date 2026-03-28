@@ -202,11 +202,11 @@ button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:
 .file-name{font-weight:500;color:#0f172a;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* uploading animated dots */
-.upload-dots{display:flex;align-items:center;gap:6px;padding:6px 10px}
-.upload-dots span{width:7px;height:7px;background:#2563eb;border-radius:50%;display:inline-block;opacity:0.9;transform:translateY(0);animation:dots 1s infinite linear}
-.upload-dots span:nth-child(2){animation-delay:0.15s}
-.upload-dots span:nth-child(3){animation-delay:0.3s}
-@keyframes dots{0%{transform:translateY(0);opacity:0.6}50%{transform:translateY(-6px);opacity:1}100%{transform:translateY(0);opacity:0.6}}
+.upload-dots{display:flex;align-items:center;gap:4px;padding:4px 8px}
+.upload-dots span{width:5px;height:5px;background:#111;border-radius:50%;display:inline-block;opacity:0.95;transform:translateY(0);animation:dots 0.9s infinite linear}
+.upload-dots span:nth-child(2){animation-delay:0.1s}
+.upload-dots span:nth-child(3){animation-delay:0.2s}
+@keyframes dots{0%{transform:translateY(0);opacity:0.6}50%{transform:translateY(-4px);opacity:1}100%{transform:translateY(0);opacity:0.6}}
 .doc-id{font-size:11px;font-weight:700;color:#2563eb;background:#eff6ff;border-radius:4px;padding:1px 5px;font-family:ui-monospace,"Cascadia Code","Fira Code",monospace;white-space:nowrap}
 .muted{color:#64748b;font-size:13px}
 .actions-cell{display:flex;gap:8px;align-items:center}

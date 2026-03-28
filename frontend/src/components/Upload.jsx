@@ -67,6 +67,48 @@ export default function Upload({ onOpenViewer }) {
     }, 4000)
   }
 
+  const genPasteName = (mime) => {
+    const id = Math.random().toString(36).slice(2,9)
+    let ext = 'png'
+    try {
+      if (mime && mime.includes('/')) ext = mime.split('/')[1].split(';')[0]
+    } catch (e) {}
+    return `paste-${id}.${ext}`
+  }
+
+  const handlePaste = (e) => {
+    if (busy) return
+    try {
+      const items = e.clipboardData && e.clipboardData.items
+      if (!items) return
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i]
+        if (it.kind === 'file') {
+          const f = it.getAsFile()
+          if (f && f.type && f.type.startsWith('image/')) {
+            const name = genPasteName(f.type)
+            const newFile = new File([f], name, { type: f.type })
+            doUpload(newFile)
+            e.preventDefault()
+            return
+          }
+        }
+        // fallback: if plain text contains an image URL, attempt link upload
+        if (it.kind === 'string' && it.type === 'text/plain') {
+          it.getAsString((s) => {
+            const txt = (s || '').trim()
+            if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(txt)) {
+              setDocumentLink(txt)
+              uploadDocumentLink()
+            }
+          })
+        }
+      }
+    } catch (e) {
+      // ignore paste errors
+    }
+  }
+
   const doUpload = async (file) => {
     if (!file || busy) return
     setLinkError("")
@@ -181,6 +223,7 @@ export default function Upload({ onOpenViewer }) {
         onDragOver={e => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
+        onPaste={handlePaste}
         onClick={() => !busy && inputRef.current.click()}
       >
         <div className="dropzone-icon">📂</div>

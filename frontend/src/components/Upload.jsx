@@ -109,6 +109,26 @@ export default function Upload({ onOpenViewer }) {
     }
   }
 
+  // Attach global paste handler so Cmd+V works anywhere on the page
+  React.useEffect(() => {
+    const globalHandler = (ev) => {
+      try {
+        // ignore pastes into form inputs or contenteditable areas
+        const tg = ev.target
+        if (!tg) return
+        const tagName = tg.tagName && tg.tagName.toLowerCase()
+        const isEditable = tagName === 'input' || tagName === 'textarea' || tg.isContentEditable
+        if (isEditable) return
+        handlePaste(ev)
+      } catch (err) {
+        // swallow
+      }
+    }
+
+    window.addEventListener('paste', globalHandler)
+    return () => window.removeEventListener('paste', globalHandler)
+  }, [busy])
+
   const doUpload = async (file) => {
     if (!file || busy) return
     setLinkError("")
@@ -223,7 +243,6 @@ export default function Upload({ onOpenViewer }) {
         onDragOver={e => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        onPaste={handlePaste}
         onClick={() => !busy && inputRef.current.click()}
       >
         <div className="dropzone-icon">📂</div>

@@ -198,6 +198,7 @@ button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:
 .uploads-table td{padding:13px 16px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
 .uploads-table tbody tr:last-child td{border-bottom:none}
 .uploads-table tbody tr:hover{background:#f8fafc}
+.uploads-table tr.row-highlight{background:linear-gradient(90deg,#fffbeb,#fff);transition:background .35s}
 .file-name{font-weight:500;color:#0f172a;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .doc-id{font-size:11px;font-weight:700;color:#2563eb;background:#eff6ff;border-radius:4px;padding:1px 5px;font-family:ui-monospace,"Cascadia Code","Fira Code",monospace;white-space:nowrap}
 .muted{color:#64748b;font-size:13px}

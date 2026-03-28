@@ -10,6 +10,9 @@ export default function Upload({ onOpenViewer }) {
   const [busy, setBusy] = useState(false)
   const [documentLink, setDocumentLink] = useState("")
   const [linkError, setLinkError] = useState("")
+  const [highlightedId, setHighlightedId] = useState(null)
+  const [highlightedName, setHighlightedName] = useState(null)
+  const highlightTimer = useRef(null)
   const filenameFromUrl = (url) => {
     try {
       const u = new URL(url)
@@ -43,6 +46,27 @@ export default function Upload({ onOpenViewer }) {
     }
   }
 
+  const clearHighlight = () => {
+    if (highlightTimer.current) {
+      clearTimeout(highlightTimer.current)
+      highlightTimer.current = null
+    }
+    setHighlightedId(null)
+    setHighlightedName(null)
+  }
+
+  const setTemporaryHighlight = (id, name) => {
+    clearHighlight()
+    if (id) setHighlightedId(id)
+    else if (name) setHighlightedName(name)
+    // clear after 4s
+    highlightTimer.current = setTimeout(() => {
+      setHighlightedId(null)
+      setHighlightedName(null)
+      highlightTimer.current = null
+    }, 4000)
+  }
+
   const doUpload = async (file) => {
     if (!file || busy) return
     setLinkError("")
@@ -51,11 +75,16 @@ export default function Upload({ onOpenViewer }) {
     fd.append("file", file)
     const entry = { id: null, name: file.name, status: "Uploading", uploadedAt: new Date().toLocaleString(), text: null }
     setUploads(prev => [entry, ...prev])
+    setTemporaryHighlight(null, file.name)
     try {
-      await axios.post(`${API}/upload`, fd)
+      const res = await axios.post(`${API}/upload`, fd)
       // refresh server-side listing so the displayed filename matches storage (doc-...)
       try {
         await refreshUploads()
+        try {
+          const newId = res?.data?.id
+          if (newId) setTemporaryHighlight(newId, null)
+        } catch (e) {}
       } catch {
         // fallback to updating the optimistic entry if listing failed
         setUploads(prev => prev.map(u =>
@@ -84,11 +113,16 @@ export default function Upload({ onOpenViewer }) {
     const displayName = filenameFromUrl(url)
     const entry = { id: null, name: displayName, status: "Uploading", uploadedAt: new Date().toLocaleString(), text: null }
     setUploads(prev => [entry, ...prev])
+    setTemporaryHighlight(null, displayName)
 
     try {
-      await axios.post(`${API}/upload-link`, { url })
+      const res = await axios.post(`${API}/upload-link`, { url })
       setDocumentLink("")
       await refreshUploads()
+      try {
+        const newId = res?.data?.id
+        if (newId) setTemporaryHighlight(newId, null)
+      } catch (e) {}
     } catch (error) {
       const message = error?.response?.data?.detail || "Failed to download document link"
       setLinkError(message)
@@ -193,7 +227,7 @@ export default function Upload({ onOpenViewer }) {
             <tbody>
               {uploads.map((u, i) => (
                 <React.Fragment key={u.id || i}>
-                  <tr>
+                <tr className={(u.id && u.id === highlightedId) || (!u.id && highlightedName && u.name === highlightedName) ? 'row-highlight' : ''}>
                     <td className="file-name">
                       <a className="file-link" onClick={() => u.id && navigate(`/image/${u.id}`)} style={{ cursor: 'pointer', color: '#0ea5e9', textDecoration: 'underline' }}>{u.name}</a>
                     </td>

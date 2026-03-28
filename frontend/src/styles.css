@@ -102,19 +102,20 @@ button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:
 .section-header-card{
   background:#fff;border-radius:12px;
   border:1px solid #e2e8f0;
-  padding:20px 24px;
-  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px;
+  display:flex;align-items:flex-start;justify-content:space-between;
   gap:16px;
-  margin-bottom:20px;
+  margin-bottom:18px;
   box-shadow:0 1px 3px rgba(0,0,0,0.05);
 }
 .section-header-main{flex:1;min-width:0}
-.section-title{font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px}
-.section-sub{color:#64748b;font-size:13px}
+.section-title{font-size:18px;font-weight:700;color:#0f172a;margin-bottom:6px}
+.section-sub{color:#64748b;font-size:13px;margin-bottom:8px}
 
 .link-upload-row{
   display:flex;align-items:center;gap:12px;
-  margin-top:14px;
+  margin-top:6px;
+  width:100%;
 }
 .link-upload-input{
   flex:1;min-width:0;

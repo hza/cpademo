@@ -15,7 +15,7 @@ import mimetypes
     
 from src.textract_client import TextractClient
 from src.llm import run_prompt, run_prompt_stream
-from src.vllm import run_visual_ocr
+from src.vllm import run_visual_ocr, ocr_with_openrouter_stream
 import json
 import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
@@ -317,6 +317,81 @@ def vllm_ocr(file_id: str, model: Optional[str] = None) -> JSONResponse:
         logger.exception("Failed to update metadata JSON with vllm OCR info for %s", stem)
 
     return JSONResponse({"id": file_id, "text": text})
+
+
+@app.websocket("/ws/vllm/ocr")
+async def ws_vllm_ocr(websocket: WebSocket):
+    """WebSocket endpoint for streaming vllm visual OCR.
+
+    Accepts a single JSON message: {"id": "...", "model": "..." (optional)}
+    Streams OCR text chunks back as plain text frames, then sends [[DONE]].
+    Saves final result to <id>.txt and updates metadata JSON.
+    """
+    await websocket.accept()
+    try:
+        raw = await websocket.receive_text()
+        try:
+            payload = json.loads(raw)
+            file_id = payload.get("id")
+            model = payload.get("model") or None
+        except Exception:
+            await websocket.send_text(json.dumps({"error": "invalid payload; expected JSON with id"}))
+            await websocket.close()
+            return
+
+        path = _find_file_by_id(file_id)
+        if not path:
+            await websocket.send_text(json.dumps({"error": "file id not found"}))
+            await websocket.close()
+            return
+
+        loop = asyncio.get_running_loop()
+        stem = path.stem
+
+        def produce():
+            try:
+                chunks = []
+                for chunk in ocr_with_openrouter_stream(str(path), model=model):
+                    asyncio.run_coroutine_threadsafe(websocket.send_text(chunk), loop)
+                    chunks.append(chunk)
+
+                full_text = ''.join(chunks)
+
+                # persist to <id>.txt
+                try:
+                    txt_path = UPLOAD_DIR / f"{stem}.txt"
+                    txt_path.write_text(full_text, encoding="utf-8")
+                except Exception:
+                    logger.exception("Failed to save vllm stream result for %s", file_id)
+
+                # update metadata JSON
+                try:
+                    meta_path = UPLOAD_DIR / f"{stem}.json"
+                    meta = {}
+                    if meta_path.exists():
+                        try:
+                            meta = json.loads(meta_path.read_text(encoding="utf-8")) or {}
+                        except Exception:
+                            meta = {}
+                    meta["ocrMethod"] = "vllm"
+                    meta["ocrModel"] = model or None
+                    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+                except Exception:
+                    logger.exception("Failed to update metadata JSON for vllm stream %s", stem)
+
+                asyncio.run_coroutine_threadsafe(websocket.send_text("[[DONE]]"), loop)
+            except Exception as e:
+                asyncio.run_coroutine_threadsafe(websocket.send_text(json.dumps({"error": str(e)})), loop)
+
+        await loop.run_in_executor(None, produce)
+
+    except WebSocketDisconnect:
+        return
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 @app.get("/download/{file_id}")

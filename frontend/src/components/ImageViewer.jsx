@@ -115,13 +115,38 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
                   if (ocrMethod === 'textract') {
                     const res = await axios.get(`${API}/textract/${docId}?fresh=1`)
                     setOcrText(res.data.text)
+                    setOcrLoading(false)
                   } else {
-                    const res = await axios.post(`${API}/vllm/ocr/${docId}?model=${encodeURIComponent(model)}`)
-                    setOcrText(res.data.text)
+                    // stream vllm OCR via WebSocket
+                    const wsProtocol = API.startsWith('https') ? 'wss' : 'ws'
+                    const wsHost = API.replace(/^https?:\/\//, '')
+                    const ws = new WebSocket(`${wsProtocol}://${wsHost}/ws/vllm/ocr`)
+                    ws.onopen = () => ws.send(JSON.stringify({ id: docId, model }))
+                    ws.onmessage = (ev) => {
+                      const data = ev.data
+                      if (data === '[[DONE]]') {
+                        setOcrLoading(false)
+                        try { ws.close() } catch (e) {}
+                        return
+                      }
+                      try {
+                        const parsed = JSON.parse(data)
+                        if (parsed.error) {
+                          setOcrText(`OCR failed: ${parsed.error}`)
+                          setOcrLoading(false)
+                          return
+                        }
+                      } catch { /* not JSON, it's a chunk */ }
+                      setOcrText(prev => (prev || '') + data)
+                    }
+                    ws.onerror = () => {
+                      setOcrText('OCR failed: WebSocket error')
+                      setOcrLoading(false)
+                    }
+                    ws.onclose = () => setOcrLoading(false)
                   }
                 } catch (e) {
                   setOcrText(`OCR failed: ${e?.response?.data?.detail || e.message || e}`)
-                } finally {
                   setOcrLoading(false)
                 }
               }}>{ocrLoading ? 'Running OCR…' : (ocrMethod === 'textract' ? 'OCR with Textract' : 'OCR with LLM')}</button>

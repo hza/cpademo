@@ -92,6 +92,66 @@ def ocr_with_openrouter(path: str, api_key: str | None = None, model: str | None
         raise
 
 
+def ocr_with_openrouter_stream(path: str, api_key: str | None = None, model: str | None = None):
+    """Stream visual OCR output from an OpenRouter vision model.
+
+    Yields partial text chunks as they arrive.
+    """
+    try:
+        from openai import OpenAI
+    except Exception as e:
+        raise RuntimeError("openai.OpenAI client is required for OpenRouter calls") from e
+
+    if api_key is None:
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+    if model is None:
+        model = os.environ.get("VLLM_MODEL", _DEFAULT_VLLM_MODEL)
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY is not set")
+
+    client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
+
+    b64, mime_type = _read_b64(path)
+    data_url = f"data:{mime_type};base64,{b64}"
+
+    stream = client.chat.completions.create(
+        model=model,
+        stream=True,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Extract all textual content from the image and format it as Markdown. "
+                            "Use headings, bullet lists, tables, bold/italic, and code blocks where appropriate to reflect the visual structure. "
+                            "Preserve the original reading order. "
+                            "Return only the Markdown — no preamble, no commentary, no code fences around the whole output."
+                        ),
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": data_url},
+                    },
+                ],
+            }
+        ],
+    )
+
+    for event in stream:
+        try:
+            choices = getattr(event, "choices", []) or []
+            for choice in choices:
+                delta = getattr(choice, "delta", None)
+                if delta is not None:
+                    c = getattr(delta, "content", None)
+                    if c:
+                        yield c
+        except Exception:
+            continue
+
+
 def run_visual_ocr(path: str, api_key: str | None = None, model: str | None = None) -> dict:
     """Try OpenRouter visual OCR.
 

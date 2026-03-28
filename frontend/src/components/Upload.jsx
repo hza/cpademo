@@ -233,50 +233,58 @@ export default function Upload({ onOpenViewer }) {
                     </td>
                     <td className="muted">{u.uploadedAt}</td>
                     <td className="actions-cell">
-                        <button
-                          className="action-btn"
-                          title="View"
-                          aria-label="View"
-                          style={{ padding: '6px 10px', fontSize: 16, lineHeight: 1 }}
-                          onClick={async () => {
-                            // ensure text exists (extract if needed), then open viewer in-app
-                            if (!u.has_text) {
-                              await extract(u.id)
-                            }
-                            if (onOpenViewer) onOpenViewer(u.id)
-                          }}
-                        >
-                          <span role="img" aria-hidden="true">✏️</span>
-                        </button>
-                      <button
-                        className="action-btn"
-                        style={{ marginLeft: 8 }}
-                        onClick={async () => {
-                          if (!u.id) return
-                          if (!window.confirm(`Delete ${u.name}? This cannot be undone.`)) return
-                          try {
-                            await axios.delete(`${API}/upload/${u.id}`)
-                            // refresh list
-                            const list = await axios.get(`${API}/uploads`)
-                            const existing = list.data.uploads.map(u => ({
-                              id: u.id,
-                              name: u.name,
-                              status: u.has_text ? "Done" : "Uploaded",
-                              has_text: u.has_text || false,
-                              uploadedAt: new Date(u.uploadedAt * 1000).toLocaleString(),
-                              text: null,
-                            }))
-                            setUploads(existing)
-                          } catch (e) {
-                            alert('Failed to delete file')
-                          }
-                        }}
-                        aria-label={`Delete ${u.name}`}
-                        title="Delete"
-                      >
-                        <span role="img" aria-hidden="true" style={{ fontSize: 14 }}>🗑️</span>
-                      </button>
-                      {(u.status === "Extracting") && <span className="muted">Processing…</span>}
+                      {u.status === "Uploading" ? (
+                        <div className="upload-dots" aria-hidden="true">
+                          <span></span><span></span><span></span>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            className="action-btn"
+                            title="View"
+                            aria-label="View"
+                            style={{ padding: '6px 10px', fontSize: 16, lineHeight: 1 }}
+                            onClick={async () => {
+                              // ensure text exists (extract if needed), then open viewer in-app
+                              if (!u.has_text) {
+                                await extract(u.id)
+                              }
+                              if (onOpenViewer) onOpenViewer(u.id)
+                            }}
+                          >
+                            <span role="img" aria-hidden="true">✏️</span>
+                          </button>
+                          <button
+                            className="action-btn"
+                            style={{ marginLeft: 8 }}
+                            onClick={async () => {
+                              if (!u.id) return
+                              if (!window.confirm(`Delete ${u.name}? This cannot be undone.`)) return
+                              try {
+                                await axios.delete(`${API}/upload/${u.id}`)
+                                // refresh list
+                                const list = await axios.get(`${API}/uploads`)
+                                const existing = list.data.uploads.map(u => ({
+                                  id: u.id,
+                                  name: u.name,
+                                  status: u.has_text ? "Done" : "Uploaded",
+                                  has_text: u.has_text || false,
+                                  uploadedAt: new Date(u.uploadedAt * 1000).toLocaleString(),
+                                  text: null,
+                                }))
+                                setUploads(existing)
+                              } catch (e) {
+                                alert('Failed to delete file')
+                              }
+                            }}
+                            aria-label={`Delete ${u.name}`}
+                            title="Delete"
+                          >
+                            <span role="img" aria-hidden="true" style={{ fontSize: 14 }}>🗑️</span>
+                          </button>
+                          {(u.status === "Extracting") && <span className="muted">Processing…</span>}
+                        </>
+                      )}
                     </td>
                   </tr>
                   {/* inline preview removed — viewer opens in new page */}

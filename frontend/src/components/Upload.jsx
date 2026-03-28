@@ -10,6 +10,15 @@ export default function Upload({ onOpenViewer }) {
   const [busy, setBusy] = useState(false)
   const [documentLink, setDocumentLink] = useState("")
   const [linkError, setLinkError] = useState("")
+  const filenameFromUrl = (url) => {
+    try {
+      const u = new URL(url)
+      const name = decodeURIComponent(u.pathname.split('/').pop() || '')
+      return name || url
+    } catch (e) {
+      return url
+    }
+  }
   // no inline expansion; viewer opens in new page
   const inputRef = useRef()
 
@@ -72,7 +81,8 @@ export default function Upload({ onOpenViewer }) {
 
     setLinkError("")
     setBusy(true)
-    const entry = { id: null, name: url, status: "Uploading", uploadedAt: new Date().toLocaleString(), text: null }
+    const displayName = filenameFromUrl(url)
+    const entry = { id: null, name: displayName, status: "Uploading", uploadedAt: new Date().toLocaleString(), text: null }
     setUploads(prev => [entry, ...prev])
 
     try {

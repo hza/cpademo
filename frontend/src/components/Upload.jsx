@@ -64,16 +64,16 @@ export default function Upload({ onOpenViewer }) {
       setHighlightedId(null)
       setHighlightedName(null)
       highlightTimer.current = null
-    }, 4000)
+    }, 15000)
   }
 
   const genPasteName = (mime) => {
-    const id = Math.random().toString(36).slice(2,9)
+    const id = Math.random().toString(36).slice(2,16)
     let ext = 'png'
     try {
       if (mime && mime.includes('/')) ext = mime.split('/')[1].split(';')[0]
     } catch (e) {}
-    return `paste-${id}.${ext}`
+    return `Paste-${id}.${ext}`
   }
 
   const handlePaste = (e) => {
@@ -215,18 +215,13 @@ export default function Upload({ onOpenViewer }) {
     if (f) doUpload(f)
   }
 
-  const statusBadge = (s) => {
-    const cls = { Uploading: "badge-blue", Uploaded: "badge-gray", Extracting: "badge-yellow", Done: "badge-green", Failed: "badge-red", Error: "badge-red" }
-    return <span className={`badge ${cls[s] || "badge-gray"}`}>{s}</span>
-  }
-
   return (
     <div>
       {/* Page intro card */}
       <div className="section-header-card">
         <div className="section-header-main">
           <h2 className="section-title">My Documents</h2>
-          <p className="section-sub">Upload images or PDFs and extract structured text using AWS Textract and then run AI pipelines for further analysis.</p>
+          <p className="section-sub">Upload images or PDFs and extract structured text using <a target="_blank" href='https://us-east-1.console.aws.amazon.com/costmanagement/home?region=us-east-1#/freetier'>AWS Textract</a> and then run AI pipelines for further analysis.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button className="btn-primary" onClick={() => inputRef.current.click()} disabled={busy}>

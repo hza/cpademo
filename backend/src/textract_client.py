@@ -31,16 +31,21 @@ class TextractClient:
         return "\n".join(lines)
 
     def export_markdown(self, *, file_path: str | None = None, s3_bucket: str | None = None, s3_key: str | None = None, feature_types: list[str] | None = None) -> str:
+        """Extract text, tables, and key-value forms from a document and return clean Markdown.
+
+        Uses Textract AnalyzeDocument for rich structural extraction (tables + forms).
+        Content is interleaved in document reading order (top-to-bottom).
+        Falls back to plain text detection if analysis fails.
+        """
         if feature_types is None:
             feature_types = ["TABLES", "FORMS"]
         doc = self._build_document(file_path=file_path, s3_bucket=s3_bucket, s3_key=s3_key)
-        response = self._client.analyze_document(Document=doc, FeatureTypes=feature_types)
-        output_types = [Textract_Pretty_Print.LINES]
-        if "TABLES" in feature_types:
-            output_types.append(Textract_Pretty_Print.TABLES)
-        if "FORMS" in feature_types:
-            output_types.append(Textract_Pretty_Print.FORMS)
-        return get_string(textract_json=response, output_type=output_types, table_format=Pretty_Print_Table_Format.github)
+        try:
+            response = self._client.analyze_document(Document=doc, FeatureTypes=feature_types)
+        except (ClientError, Exception):
+            # Fallback: plain text extraction for unsupported formats
+            return self.extract_text(file_path=file_path, s3_bucket=s3_bucket, s3_key=s3_key)
+        return _blocks_to_markdown(response["Blocks"])
 
     def analyze_document(self, *, file_path: str | None = None, s3_bucket: str | None = None, s3_key: str | None = None, feature_types: list[str] | None = None) -> dict:
         if feature_types is None:
@@ -187,3 +192,134 @@ def _collect_text(block: dict, bmap: dict[str, dict], rel_type: str) -> str:
             elif bt == "SELECTION_ELEMENT":
                 parts.append(child.get("SelectionStatus", ""))
     return " ".join(parts)
+
+
+# ── Markdown rendering helpers ──────────────────────────────────────────────
+
+
+def _y_pos(block: dict) -> float:
+    """Return the top Y coordinate of a block for vertical ordering."""
+    return block.get("Geometry", {}).get("BoundingBox", {}).get("Top", 0.0)
+
+
+def _consume_descendants(block: dict, bmap: dict[str, dict], consumed: set[str]) -> None:
+    """Recursively mark a block and all CHILD descendants as consumed."""
+    consumed.add(block["Id"])
+    for rel in block.get("Relationships", []):
+        if rel["Type"] == "CHILD":
+            for cid in rel["Ids"]:
+                consumed.add(cid)
+                child = bmap.get(cid)
+                if child:
+                    _consume_descendants(child, bmap, consumed)
+
+
+def _table_block_to_rows(table_block: dict, bmap: dict[str, dict], consumed: set[str]) -> list[list[str]]:
+    """Extract a TABLE block into a list of rows (each row a list of cell strings).
+
+    Marks every descendant block (cells, words) as consumed so they are not
+    duplicated in the line-text pass.
+    """
+    cells: dict[tuple[int, int], str] = {}
+    for rel in table_block.get("Relationships", []):
+        if rel["Type"] != "CHILD":
+            continue
+        for cell_id in rel["Ids"]:
+            cell = bmap.get(cell_id, {})
+            if cell.get("BlockType") != "CELL":
+                continue
+            row_idx = cell["RowIndex"]
+            col_idx = cell["ColumnIndex"]
+            parts: list[str] = []
+            for wrel in cell.get("Relationships", []):
+                if wrel["Type"] != "CHILD":
+                    continue
+                for wid in wrel["Ids"]:
+                    w = bmap.get(wid, {})
+                    if w.get("BlockType") in ("WORD", "SELECTION_ELEMENT"):
+                        parts.append(w.get("Text", w.get("SelectionStatus", "")))
+            cells[(row_idx, col_idx)] = " ".join(parts)
+    _consume_descendants(table_block, bmap, consumed)
+    if not cells:
+        return []
+    max_r = max(r for r, _ in cells)
+    max_c = max(c for _, c in cells)
+    return [[cells.get((r, c), "") for c in range(1, max_c + 1)] for r in range(1, max_r + 1)]
+
+
+def _rows_to_gfm(rows: list[list[str]]) -> str:
+    """Render rows as a GitHub-Flavored Markdown table (first row = header)."""
+    if not rows:
+        return ""
+    ncols = max(len(r) for r in rows)
+    rows = [r + [""] * (ncols - len(r)) for r in rows]
+    widths = [max((len(rows[ri][ci]) for ri in range(len(rows))), default=3) for ci in range(ncols)]
+    widths = [max(w, 3) for w in widths]
+
+    def _fmt(row: list[str]) -> str:
+        return "| " + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(row)) + " |"
+
+    lines = [_fmt(rows[0])]
+    lines.append("| " + " | ".join("-" * w for w in widths) + " |")
+    for row in rows[1:]:
+        lines.append(_fmt(row))
+    return "\n".join(lines)
+
+
+def _blocks_to_markdown(blocks: list[dict]) -> str:
+    """Convert Textract AnalyzeDocument blocks into clean Markdown.
+
+    Renders:
+    - Tables   → GFM markdown tables (first row treated as header)
+    - Forms    → **Key:** Value pairs
+    - Leftover → plain text lines
+
+    All content is interleaved by vertical position so the output mirrors the
+    original document reading order.
+    """
+    bmap = _block_map(blocks)
+    consumed: set[str] = set()
+    elements: list[tuple[float, str]] = []  # (y_position, markdown)
+
+    # ── Tables ──
+    for b in blocks:
+        if b["BlockType"] != "TABLE":
+            continue
+        rows = _table_block_to_rows(b, bmap, consumed)
+        if rows:
+            elements.append((_y_pos(b), _rows_to_gfm(rows)))
+
+    # ── Forms (key-value pairs) ──
+    for b in blocks:
+        if b["BlockType"] != "KEY_VALUE_SET" or "KEY" not in b.get("EntityTypes", []):
+            continue
+        key = _collect_text(b, bmap, "CHILD").strip()
+        _consume_descendants(b, bmap, consumed)
+        value = ""
+        for rel in b.get("Relationships", []):
+            if rel["Type"] == "VALUE":
+                for vid in rel["Ids"]:
+                    vb = bmap.get(vid, {})
+                    value = _collect_text(vb, bmap, "CHILD").strip()
+                    _consume_descendants(vb, bmap, consumed)
+        if key:
+            elements.append((_y_pos(b), f"**{key}** {value}"))
+
+    # ── Remaining text lines (not consumed by tables or forms) ──
+    for b in blocks:
+        if b["BlockType"] != "LINE":
+            continue
+        # A LINE is consumed if all its child WORDs are already accounted for
+        child_ids: list[str] = []
+        for rel in b.get("Relationships", []):
+            if rel["Type"] == "CHILD":
+                child_ids.extend(rel["Ids"])
+        if child_ids and all(cid in consumed for cid in child_ids):
+            continue
+        text = b.get("Text", "").strip()
+        if text:
+            elements.append((_y_pos(b), text))
+
+    # Sort by vertical position (reading order: top → bottom)
+    elements.sort(key=lambda e: e[0])
+    return "\n\n".join(e[1] for e in elements)

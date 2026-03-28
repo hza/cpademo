@@ -247,12 +247,12 @@ export default function Upload({ onOpenViewer }) {
         <div className="or-divider" aria-hidden="true"><span>OR</span></div>
 
         <div className="link-upload-row" onClick={e => e.stopPropagation()}>
-          <label className="sr-only" htmlFor="document-link">Paste image link</label>
+          <label className="sr-only" htmlFor="document-link">Paste image or image link</label>
           <input
             id="document-link"
             className="link-upload-input"
             type="url"
-            placeholder="Paste image link"
+            placeholder="Paste image or image link"
             value={documentLink}
             onChange={e => setDocumentLink(e.target.value)}
             onKeyDown={e => {

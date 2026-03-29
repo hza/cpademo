@@ -8,6 +8,7 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
   const navigate = useNavigate()
   const [content, setContent] = useState(result || '')
   const [detModel, setDetModel] = useState(model || '')
+  const [llmNotFound, setLlmNotFound] = useState(false)
 
   useEffect(() => {
     // if we don't have a result (e.g. after page refresh), try to load persisted LLM result
@@ -22,9 +23,11 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
             setContent(j.text || '')
             if (!detModel && j.model) setDetModel(j.model || '')
           }
+        } else if (res.status === 404) {
+          if (!cancelled) setLlmNotFound(true)
         }
       } catch (e) {
-        // ignore
+        // ignore network errors
       }
     }
     fetchSaved()
@@ -62,7 +65,17 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
           </div>
         ) : (
           <>
-            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, color: '#0f172a', padding: 12, borderRadius: 8, background: '#fbfdff', maxHeight: '240px', overflowY: 'auto' }}>{content}</pre>
+            {llmNotFound && (!content || content.length === 0) ? (
+              <div style={{ textAlign: 'center', padding: 20 }}>
+                <div style={{ marginBottom: 8, color: '#64748b' }}>No AI result saved for this document yet.</div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                  <button className="btn-primary" onClick={() => navigate(`/gl/${docId}`)}>Run Detection</button>
+                  <button className="btn-primary" style={{ background: '#94a3b8' }} onClick={() => window.location.reload()}>Refresh</button>
+                </div>
+              </div>
+            ) : (
+              <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, "Fira Code", monospace', fontSize: 13, color: '#0f172a', padding: 12, borderRadius: 8, background: '#fbfdff', maxHeight: '240px', overflowY: 'auto' }}>{content}</pre>
+            )}
             {(!loading && content && content.length > 0) && (
               <div style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>AI may make mistakes — verify before using.</div>
             )}

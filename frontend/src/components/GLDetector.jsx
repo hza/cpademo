@@ -142,6 +142,7 @@ Instructions:
                 'nvidia/nemotron-3-super-120b-a12b:free',
                 'z-ai/glm-4.5-air:free',
                 'qwen/qwen3-next-80b-a3b-instruct:free',
+                'google/gemini-2.0-flash-lite-001',
               ]}
             />
           </div>

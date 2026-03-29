@@ -73,6 +73,8 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
         <div>
           <h2 className="section-title">Document</h2>
           <p className="section-sub">Original file: <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{displayName || docId}</span></p>
+          <p className="section-sub">Note that textract is not best choise to extract document with tables, processing of the tables are done separately on the server and is not perfect.</p>
+          <p className="section-sub">Using <b>GPT models</b> to extract text can improve accuracy for complex documents and is more cost effective. For example, GPT models can better handle multi-column layouts and complex table structures.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
           {/* Row 1: radio buttons */}

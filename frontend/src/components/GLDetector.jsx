@@ -108,6 +108,7 @@ Instructions:
         <div>
           <h2 className="section-title">GL Code Detector</h2>
           <p className="section-sub">Run a configurable agent prompt against the extracted text.</p>
+          <p className="section-sub">Note that Agent Prompt is configurable and can be adjusted to improve detection accuracy. (RAG learning loop)</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn-primary" onClick={runDetection} disabled={loading}>{loading ? 'Detecting…' : 'Detect GL Code'}</button>

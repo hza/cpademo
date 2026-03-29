@@ -8,6 +8,7 @@ export default function Upload({ onOpenViewer }) {
   const [uploads, setUploads] = useState([])
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [loadingUploads, setLoadingUploads] = useState(true)
   const [documentLink, setDocumentLink] = useState("")
   const [linkError, setLinkError] = useState("")
   const [highlightedId, setHighlightedId] = useState(null)
@@ -31,6 +32,7 @@ export default function Upload({ onOpenViewer }) {
   }, [])
 
   const refreshUploads = async () => {
+    setLoadingUploads(true)
     try {
       const res = await axios.get(`${API}/uploads`)
       const existing = res.data.uploads.map(u => ({
@@ -43,6 +45,9 @@ export default function Upload({ onOpenViewer }) {
       }))
       setUploads(existing)
     } catch {
+    }
+    finally {
+      setLoadingUploads(false)
     }
   }
 
@@ -324,77 +329,94 @@ export default function Upload({ onOpenViewer }) {
               </tr>
             </thead>
             <tbody>
-              {uploads.map((u, i) => (
-                <React.Fragment key={u.id || i}>
-                <tr className={(u.id && u.id === highlightedId) || (!u.id && highlightedName && u.name === highlightedName) ? 'row-highlight' : ''}>
-                    <td className="file-name">
-                      <a className="file-link" onClick={() => u.id && navigate(`/image/${u.id}`)} style={{ cursor: 'pointer', color: '#0ea5e9', textDecoration: 'underline' }}>{u.name}</a>
-                    </td>
-                    <td className="muted">{u.uploadedAt}</td>
+              {loadingUploads ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`} aria-hidden="true" className="skeleton-row">
+                    <td className="file-name"><div style={{ background: '#e2e8f0', height: 16, width: '60%', borderRadius: 4 }}></div></td>
+                    <td className="muted"><div style={{ background: '#e2e8f0', height: 12, width: '40%', borderRadius: 4 }}></div></td>
                     <td className="actions-cell">
-                      {u.status === "Uploading" ? (
-                        <div className="upload-dots" aria-hidden="true">
-                          <span></span><span></span><span></span>
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            className="action-btn"
-                            title="View"
-                            aria-label="View"
-                            style={{ padding: '6px 10px', fontSize: 16, lineHeight: 1 }}
-                            onClick={async () => {
-                              // ensure text exists (extract if needed), then open viewer in-app
-                              if (!u.has_text) {
-                                await extract(u.id)
-                              }
-                              if (onOpenViewer) onOpenViewer(u.id)
-                            }}
-                          >
-                            <span role="img" aria-hidden="true">✏️</span>
-                          </button>
-                          <button
-                            className="action-btn"
-                            style={{ marginLeft: 8 }}
-                            onClick={async () => {
-                              if (!u.id) return
-                              if (!window.confirm(`Delete ${u.name}? This cannot be undone.`)) return
-                              try {
-                                await axios.delete(`${API}/upload/${u.id}`)
-                                // refresh list
-                                const list = await axios.get(`${API}/uploads`)
-                                const existing = list.data.uploads.map(u => ({
-                                  id: u.id,
-                                  name: u.name,
-                                  status: u.has_text ? "Done" : "Uploaded",
-                                  has_text: u.has_text || false,
-                                  uploadedAt: new Date(u.uploadedAt * 1000).toLocaleString(),
-                                  text: null,
-                                }))
-                                setUploads(existing)
-                              } catch (e) {
-                                alert('Failed to delete file')
-                              }
-                            }}
-                            aria-label={`Delete ${u.name}`}
-                            title="Delete"
-                          >
-                            <span role="img" aria-hidden="true" style={{ fontSize: 14 }}>🗑️</span>
-                          </button>
-                          {(u.status === "Extracting") && <span className="muted">Processing…</span>}
-                        </>
-                      )}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div style={{ background: '#e2e8f0', height: 28, width: 28, borderRadius: 6 }}></div>
+                        <div style={{ background: '#e2e8f0', height: 28, width: 28, borderRadius: 6 }}></div>
+                      </div>
                     </td>
                   </tr>
-                  {/* inline preview removed — viewer opens in new page */}
-                </React.Fragment>
-              ))}
-              {uploads.length === 0 && (
-                <tr>
-                  <td colSpan={3} style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>
-                    No uploads yet. Drop a file above to get started.
-                  </td>
-                </tr>
+                ))
+              ) : (
+                <>
+                  {uploads.map((u, i) => (
+                    <React.Fragment key={u.id || i}>
+                    <tr className={(u.id && u.id === highlightedId) || (!u.id && highlightedName && u.name === highlightedName) ? 'row-highlight' : ''}>
+                        <td className="file-name">
+                          <a className="file-link" onClick={() => u.id && navigate(`/image/${u.id}`)} style={{ cursor: 'pointer', color: '#0ea5e9', textDecoration: 'underline' }}>{u.name}</a>
+                        </td>
+                        <td className="muted">{u.uploadedAt}</td>
+                        <td className="actions-cell">
+                          {u.status === "Uploading" ? (
+                            <div className="upload-dots" aria-hidden="true">
+                              <span></span><span></span><span></span>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                className="action-btn"
+                                title="View"
+                                aria-label="View"
+                                style={{ padding: '6px 10px', fontSize: 16, lineHeight: 1 }}
+                                onClick={async () => {
+                                  // ensure text exists (extract if needed), then open viewer in-app
+                                  if (!u.has_text) {
+                                    await extract(u.id)
+                                  }
+                                  if (onOpenViewer) onOpenViewer(u.id)
+                                }}
+                              >
+                                <span role="img" aria-hidden="true">✏️</span>
+                              </button>
+                              <button
+                                className="action-btn"
+                                style={{ marginLeft: 8 }}
+                                onClick={async () => {
+                                  if (!u.id) return
+                                  if (!window.confirm(`Delete ${u.name}? This cannot be undone.`)) return
+                                  try {
+                                    await axios.delete(`${API}/upload/${u.id}`)
+                                    // refresh list
+                                    const list = await axios.get(`${API}/uploads`)
+                                    const existing = list.data.uploads.map(u => ({
+                                      id: u.id,
+                                      name: u.name,
+                                      status: u.has_text ? "Done" : "Uploaded",
+                                      has_text: u.has_text || false,
+                                      uploadedAt: new Date(u.uploadedAt * 1000).toLocaleString(),
+                                      text: null,
+                                    }))
+                                    setUploads(existing)
+                                  } catch (e) {
+                                    alert('Failed to delete file')
+                                  }
+                                }}
+                                aria-label={`Delete ${u.name}`}
+                                title="Delete"
+                              >
+                                <span role="img" aria-hidden="true" style={{ fontSize: 14 }}>🗑️</span>
+                              </button>
+                              {(u.status === "Extracting") && <span className="muted">Processing…</span>}
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                      {/* inline preview removed — viewer opens in new page */}
+                    </React.Fragment>
+                  ))}
+                  {uploads.length === 0 && (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>
+                        No uploads yet. Drop a file above to get started.
+                      </td>
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>

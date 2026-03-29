@@ -320,7 +320,12 @@ export default function Upload({ onOpenViewer }) {
       {/* Uploads table — always visible */}
       <div className="table-card">
           <h3 className="table-title">Recent Uploads</h3>
-          <table className="uploads-table">
+          <table className="uploads-table" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '60%' }} />
+              <col style={{ width: '25%' }} />
+              <col style={{ width: '15%' }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>FILE</th>

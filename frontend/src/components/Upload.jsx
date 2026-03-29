@@ -76,6 +76,47 @@ export default function Upload({ onOpenViewer }) {
     return `Paste-${id}.${ext}`
   }
 
+  const pasteFromClipboard = async () => {
+    if (busy) return
+    setLinkError("")
+    setBusy(true)
+    try {
+      // Try reading image clipboard items (needs secure context / user gesture)
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read()
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type)
+              const name = genPasteName(type)
+              const file = new File([blob], name, { type: blob.type })
+              await doUpload(file)
+              setBusy(false)
+              return
+            }
+          }
+        }
+      }
+
+      // Fallback: read text and treat as an image link if possible
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = (await navigator.clipboard.readText()).trim()
+        if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(text)) {
+          setDocumentLink(text)
+          await uploadDocumentLink()
+          setBusy(false)
+          return
+        }
+      }
+
+      setLinkError('No image found in clipboard')
+    } catch (err) {
+      setLinkError('Clipboard access denied or unsupported')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handlePaste = (e) => {
     if (busy) return
     try {
@@ -225,8 +266,8 @@ export default function Upload({ onOpenViewer }) {
           <p className="section-sub">You can also paste image from clipboard using Ctrl+V (Windows) or Cmd+V (Mac).</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button className="btn-primary" onClick={() => inputRef.current.click()} disabled={busy}>
-            ⬆ Upload New File
+          <button className="btn-primary" onClick={pasteFromClipboard} disabled={busy}>
+            📋 Paste from clipboard
           </button>
         </div>
         <input ref={inputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}

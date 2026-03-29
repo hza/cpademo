@@ -73,8 +73,9 @@ export default function ImageViewer({ id, onBack, onDetectGL }) {
         <div>
           <h2 className="section-title">Document</h2>
           <p className="section-sub">Original file: <span style={{ fontFamily: 'ui-monospace, "Fira Code", monospace', fontWeight: 700 }}>{displayName || docId}</span></p>
-          <p className="section-sub">Note that textract is not best choise to extract document with tables, processing of the tables are done separately on the server and is not perfect.</p>
-          <p className="section-sub">Using <b>GPT models</b> to extract text can improve accuracy for complex documents and is more cost effective. For example, GPT models can better handle multi-column layouts and complex table structures.</p>
+          <p className="section-sub">AWS Textract provides a solid baseline for simple layouts but can struggle to maintain structure for complex tables and multi-column documents.</p>
+          <p className="section-sub">Using <b>Vision LLMs</b> (like Gemini) significantly improves layout reconstruction. They analyze the whole page context at once, making them excellent at parsing dense tables into clean formats like Markdown.</p>
+          <p className="section-sub"><b>Estimated cost per 1,000 pages:</b> AWS Textract ≈ $1.50 (basic OCR). Gemini 2.5 Flash ≈ $0.30–$0.60 (depending on text density), making it both smarter and more cost-effective.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
           {/* Row 1: radio buttons */}

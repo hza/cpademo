@@ -61,15 +61,22 @@ if WEBROOT_DIR.exists():
                 app.mount(mount_path, StaticFiles(directory=str(p)), name=p.name)
             except Exception:
                 pass
-    # serve favicon at site root if present
-    favicon_path = WEBROOT_DIR / "favicon.svg"
-    if favicon_path.exists():
-        @app.get("/favicon.svg")
-        def favicon_svg():
-            try:
-                return FileResponse(path=str(favicon_path), filename="favicon.svg", media_type="image/svg+xml")
-            except Exception:
-                raise HTTPException(status_code=500, detail="failed to read favicon")
+    # serve known static files at site root (favicon, og-image, etc.)
+    _ROOT_STATIC = [
+        ("favicon.svg",  "image/svg+xml"),
+        ("og-image.jpg", "image/jpeg"),
+    ]
+    for _filename, _media_type in _ROOT_STATIC:
+        _file_path = WEBROOT_DIR / _filename
+        if _file_path.exists():
+            def _make_route(fp=_file_path, fn=_filename, mt=_media_type):
+                @app.get(f"/{fn}")
+                def _static_file():
+                    try:
+                        return FileResponse(path=str(fp), filename=fn, media_type=mt)
+                    except Exception:
+                        raise HTTPException(status_code=500, detail=f"failed to read {fn}")
+            _make_route()
     # optional: serve index at root of mounted path
     @app.get("/", response_class=HTMLResponse)
     def root_index():

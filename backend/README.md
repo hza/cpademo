@@ -1,4 +1,4 @@
-# AWS Textract Backend
+# Backend
 
 This folder contains the backend Python project extracted from the repository root.
 

@@ -46,10 +46,14 @@ export default function App() {
     <div className="layout">
       {/* ── Sidebar ── */}
       <aside className="sidebar">
-        <div className="sidebar-logo">
+        <button
+          className="sidebar-logo"
+          onClick={() => navigate('/')}
+          aria-label="Go to Documents"
+        >
           <span className="logo-icon">📚</span>
           <span className="logo-text">CPA Demo</span>
-        </div>
+        </button>
         <nav className="sidebar-nav">
           {NAV.map(group => (
             <div key={group.section} className="nav-group">

@@ -28,6 +28,7 @@ button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:
   border-bottom:1px solid rgba(255,255,255,0.08);
 }
 .logo-icon{font-size:22px}
+.logo-text{color:#fff}
 .sidebar-nav{padding:10px 10px 0;flex:1}
 .nav-group{margin-bottom:4px}
 .nav-section-label{

@@ -267,8 +267,8 @@ export default function Upload({ onOpenViewer }) {
       <div className="section-header-card">
         <div className="section-header-main">
           <h2 className="section-title">My Documents</h2>
-          <p className="section-sub">Upload images or extract structured text using <a target="_blank" href='https://us-east-1.console.aws.amazon.com/costmanagement/home?region=us-east-1#/freetier'>AWS Textract</a> and then run AI pipelines for further analysis. </p>
-          <p className="section-sub">You can also paste image from clipboard using Ctrl+V (Windows) or Cmd+V (Mac).</p>
+          <p className="section-sub">Upload images, extract structured text using <a target="_blank" href='https://us-east-1.console.aws.amazon.com/costmanagement/home?region=us-east-1#/freetier'>AWS Textract</a>, run AI pipeline for further analysis. </p>
+          <p className="section-sub">Tip: You can paste image to this application from clipboard using Ctrl+V (Windows) or Cmd+V (Mac).</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button className="btn-primary" onClick={pasteFromClipboard} disabled={busy}>

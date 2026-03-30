@@ -53,30 +53,20 @@ app.add_middleware(
 WEBROOT_DIR = BASE_DIR / "webroot"
 if WEBROOT_DIR.exists():
     app.mount("/webroot", StaticFiles(directory=str(WEBROOT_DIR)), name="webroot")
-    # Mount any subdirectories (e.g. /assets) so absolute paths in index.html resolve
+    # Mount subdirectories and register routes for root-level files
     for p in WEBROOT_DIR.iterdir():
         if p.is_dir():
-            mount_path = f"/{p.name}"
             try:
-                app.mount(mount_path, StaticFiles(directory=str(p)), name=p.name)
+                app.mount(f"/{p.name}", StaticFiles(directory=str(p)), name=p.name)
             except Exception:
                 pass
-    # serve known static files at site root (favicon, og-image, etc.)
-    _ROOT_STATIC = [
-        ("favicon.svg",  "image/svg+xml"),
-        ("og-image.jpg", "image/jpeg"),
-    ]
-    for _filename, _media_type in _ROOT_STATIC:
-        _file_path = WEBROOT_DIR / _filename
-        if _file_path.exists():
-            def _make_route(fp=_file_path, fn=_filename, mt=_media_type):
-                @app.get(f"/{fn}")
-                def _static_file():
-                    try:
-                        return FileResponse(path=str(fp), filename=fn, media_type=mt)
-                    except Exception:
-                        raise HTTPException(status_code=500, detail=f"failed to read {fn}")
-            _make_route()
+        elif p.is_file() and p.name != "index.html":
+            def _make_file_route(fp=p, fn=p.name):
+                media_type = mimetypes.guess_type(fn)[0] or "application/octet-stream"
+                @app.get(f"/{fn}", include_in_schema=False)
+                def _serve():
+                    return FileResponse(path=str(fp), media_type=media_type, content_disposition_type="inline")
+            _make_file_route()
     # optional: serve index at root of mounted path
     @app.get("/", response_class=HTMLResponse)
     def root_index():

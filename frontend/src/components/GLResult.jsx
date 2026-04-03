@@ -10,8 +10,18 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
   const [detModel, setDetModel] = useState(model || '')
   const [llmNotFound, setLlmNotFound] = useState(false)
 
+  // sync streamed result from parent into local content state
+  useEffect(() => {
+    if (result && result.length > 0) {
+      setContent(result)
+      setLlmNotFound(false)
+    }
+  }, [result])
+
   useEffect(() => {
     // if we don't have a result (e.g. after page refresh), try to load persisted LLM result
+    // skip while streaming is in progress (loading=true) to avoid a premature 404 race
+    if (loading) return
     let cancelled = false
     const fetchSaved = async () => {
       if (content && content.length > 0) return
@@ -32,7 +42,7 @@ export default function GLResult({ result, onBack, loading = false, model = '' }
     }
     fetchSaved()
     return () => { cancelled = true }
-  }, [docId])
+  }, [docId, loading])
 
   return (
     <div>

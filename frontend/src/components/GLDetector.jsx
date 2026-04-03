@@ -42,7 +42,7 @@ Instructions:
     `)
   const [text, setText] = useState("")
   // model picker (user-selectable). Default to an NVIDIA model identifier per request.
-  const [model, setModel] = useState('nvidia/nemotron-3-super-120b-a12b:free')
+  const [model, setModel] = useState('google/gemini-2.0-flash-lite-001')
 
   useEffect(() => {
     // prefer extractedText passed from parent; otherwise fetch by id so page works after refresh
@@ -139,10 +139,9 @@ Instructions:
               disabled={false}
               datalistId="models"
               options={[
-                'nvidia/nemotron-3-super-120b-a12b:free',
-                'z-ai/glm-4.5-air:free',
-                'qwen/qwen3-next-80b-a3b-instruct:free',
                 'google/gemini-2.0-flash-lite-001',
+                'google/gemini-2.0-flash-001',
+                'inception/mercury-2'
               ]}
             />
           </div>
